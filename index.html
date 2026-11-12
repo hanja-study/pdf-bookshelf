@@ -80,7 +80,8 @@ button{cursor:pointer}
 #stage{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;
   padding:12px;touch-action:pan-y pinch-zoom;user-select:none;-webkit-user-select:none}
 #stage:focus{outline:none}
-#stage.zoomed{overflow:auto;display:block;touch-action:auto}
+#stage.zoomed{overflow:auto;display:block;touch-action:auto;scrollbar-gutter:stable}
+#stage.fitw:not(.zoomed2){touch-action:pan-y pinch-zoom}  /* 폭 맞춤: 위아래 스크롤 + 옆으로 밀어 넘김 */
 #spread{display:flex;align-items:flex-start;justify-content:center;margin:auto}
 #stage.zoomed #spread{width:max-content;min-width:100%;min-height:100%;align-items:center}
 .page{position:relative;background:#fff;box-shadow:var(--shadow);line-height:0}
@@ -220,6 +221,7 @@ kbd{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:4px;p
     <button type="button" class="btn wide-only" id="modeBtnTop"></button>
     <button type="button" class="btn wide-only" id="zoomOutTop" aria-label="축소">−</button>
     <button type="button" class="btn wide-only" id="zoomInTop" aria-label="확대">+</button>
+    <button type="button" class="btn" id="fitBtn" aria-pressed="false" title="폭 맞춤 (W)">폭 맞춤</button>
     <button type="button" class="btn" id="markBtn" aria-pressed="false">☆<span class="sr-only">이 쪽 책갈피</span></button>
     <button type="button" class="btn" id="panelBtn" aria-expanded="false" aria-controls="panel">목차</button>
   </header>
@@ -289,7 +291,7 @@ kbd{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:4px;p
         </div>
         <div class="set">
           <h3>단축키 (노트북)</h3>
-          <p class="help"><kbd>←</kbd> <kbd>→</kbd> 쪽 넘김 · <kbd>Home</kbd> <kbd>End</kbd> 처음·끝 · <kbd>B</kbd> 책갈피 · <kbd>T</kbd> 목차 · <kbd>/</kbd> 찾기 · <kbd>S</kbd> 옆줄 숨기기·보이기 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>Esc</kbd> 패널 닫기</p>
+          <p class="help"><kbd>←</kbd> <kbd>→</kbd> 쪽 넘김 · <kbd>Home</kbd> <kbd>End</kbd> 처음·끝 · <kbd>B</kbd> 책갈피 · <kbd>T</kbd> 목차 · <kbd>/</kbd> 찾기 · <kbd>S</kbd> 옆줄 숨기기·보이기 · <kbd>W</kbd> 폭 맞춤 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>Esc</kbd> 패널 닫기</p>
           <p class="help">휴대폰: 화면 왼쪽·오른쪽을 누르거나 옆으로 밀어 넘깁니다.</p>
         </div>
       </div>
@@ -472,6 +474,7 @@ const S = {
   mode: Prefs.get("mode", "auto"),       // auto | single | double
   cover: Prefs.get("cover", true),
   zoom: 1,
+  fit: Prefs.get("fit", "page"),         // page: 쪽 전체가 보이게 | width: 화면 폭에 맞추고 위아래 스크롤
   sizes: new Map(),                      // 쪽 → {w,h} (배율 1 기준)
   lines: new Map(),                      // 쪽 → 글줄 목록 (자동 목차·찾기용)
   doc: 0,                                // 문서가 바뀔 때마다 늘어남 (오래 걸리는 작업 중단용)
@@ -618,8 +621,16 @@ async function layout(pages) {
   const sz = await Promise.all(pages.map(pageSize));
   const totalW = sz.reduce((a, s) => a + s.w, 0);
   const maxH = Math.max(...sz.map((s) => s.h));
-  const fit = Math.min(availW / totalW, availH / maxH) * S.zoom;
+  // 폭 맞춤이면 높이는 따지지 않고 폭에만 맞춤 (넘치는 높이는 스크롤)
+  const fit = (S.fit === "width" ? availW / totalW : Math.min(availW / totalW, availH / maxH)) * S.zoom;
   return { sz, fit };
+}
+
+function setScrollMode() {
+  const st = $("stage");
+  st.classList.toggle("zoomed", S.zoom > 1 || S.fit === "width");
+  st.classList.toggle("fitw", S.fit === "width");
+  st.classList.toggle("zoomed2", S.zoom > 1);
 }
 
 async function show() {
@@ -629,6 +640,8 @@ async function show() {
   S.cur = pages[0];
   updateNav(pages);
 
+  // 스크롤 모드 여부를 먼저 정해야 스크롤 막대 자리를 뺀 폭으로 계산됨
+  setScrollMode();
   const { sz, fit } = await layout(pages);
   const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
   const scale = fit * dpr;
@@ -649,7 +662,7 @@ async function show() {
   });
   $("spread").replaceChildren(...kids);
   pages.forEach((p, i) => addLinks(kids[i], p, fit, token));
-  $("stage").classList.toggle("zoomed", S.zoom > 1);
+  setScrollMode();
   // 쪽이 바뀌면 맨 위로 (확대 중에도 새 쪽은 위에서부터 읽도록)
   const shownKey = pages.join(",");
   if (S.zoom === 1 || S.lastShown !== shownKey) $("stage").scrollTo({ top: 0, left: S.zoom === 1 ? 0 : $("stage").scrollLeft });
@@ -738,6 +751,7 @@ document.addEventListener("keydown", (e) => {
     case "Home": if (inPanel) return; e.preventDefault(); go(1); break;
     case "End": if (inPanel) return; e.preventDefault(); go(S.n); break;
     case "b": case "B": toggleMark(); break;
+    case "w": case "W": toggleFit(); break;
     case "s": case "S": setSide(!$("reader").classList.contains("side-off"), false); break;
     case "/": e.preventDefault(); openPanel("find"); $("findInput").focus(); break;
     case "t": case "T": $("panel").hidden ? openPanel("toc") : closePanel(true); break;
@@ -1122,7 +1136,16 @@ function setMode(m) {
   S.mode = m; Prefs.set("mode", m);
   S.cache.clear(); syncSettings(); show();
 }
+function toggleFit() {
+  S.fit = S.fit === "width" ? "page" : "width";
+  Prefs.set("fit", S.fit);
+  syncSettings(); show();
+  toast(S.fit === "width" ? "폭 맞춤: 위아래로 스크롤해서 읽습니다." : "쪽 맞춤: 한 쪽 전체가 보입니다.");
+}
+$("fitBtn").addEventListener("click", toggleFit);
+
 function syncSettings() {
+  $("fitBtn").setAttribute("aria-pressed", String(S.fit === "width"));
   const g = $("modeGroup");
   g.replaceChildren(...MODES.map(([k, label]) => el("button", {
     type: "button", class: "btn", role: "radio", "aria-checked": String(S.mode === k),
