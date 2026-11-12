@@ -28,6 +28,7 @@ pdf-bookshelf/
 3. 맨 아래 결과에 `doc_state | true` 가 보이면 됩니다.
    (실행 중 `... does not exist, skipping` 안내가 몇 줄 보이는 것은 정상입니다. 처음 만들 때 "지울 것이 없어 건너뜀"이라는 뜻입니다.)
 
+↳ SQL 안의 `grant` 줄이 빠지면 로그인해도 `permission denied for table doc_state` 오류로 동기화가 안 됩니다. 2026년부터 Supabase는 새 테이블을 API에 자동으로 열어 주지 않습니다.
 ↳ `true`는 RLS(행 수준 보안)가 켜졌다는 뜻입니다. 이것이 꺼져 있으면 Publishable 키를 가진 누구나 표를 읽을 수 있습니다.
 ↳ Table Editor에서 `doc_state` 옆에 RLS 표시가 켜져 있는지도 한 번 눈으로 확인해 두면 좋습니다.
 
@@ -188,6 +189,7 @@ await sb.from("doc_state").select("...").eq("doc_name", name).maybeSingle();
 | `check (...)` 5개 | 서버 쪽 검증: 이름 255자, 쪽 1~100000, 책갈피는 배열·500개·64KB 이하, 미래 시각 금지 |
 | `doc_state_touch` 트리거 | `synced_at`을 서버 시각으로 (기기 시계가 틀려도 언제 들어왔는지 알 수 있게) |
 | RLS 정책 4개 | 읽기·넣기·고치기·지우기 모두 "본인 줄만" |
+| `grant ... to authenticated` | 로그인한 사용자에게 이 테이블을 API로 쓸 권한을 줌. 2026년부터 새 테이블은 자동으로 열리지 않아 꼭 필요 |
 
 ↳ 정책에서 `auth.uid()`를 `(select auth.uid())`로 감싼 것은 Supabase가 권하는 성능 요령입니다. 줄마다 함수를 다시 부르지 않고 한 번만 계산합니다.
 

@@ -68,5 +68,10 @@ create policy "doc_state delete own" on public.doc_state
   for delete to authenticated
   using ((select auth.uid()) = user_id);
 
--- 5) 확인용 (실행 결과로 rowsecurity = true 가 보이면 됨) -------------
+-- 5) Data API 권한: 2026년부터 새 테이블은 자동으로 API에 열리지 않으므로 직접 허용
+--    로그인한 사용자(authenticated)에게만. 비로그인(anon)에게는 주지 않는다.
+--    어느 줄을 볼 수 있는지는 위의 RLS가 다시 거른다.
+grant select, insert, update, delete on table public.doc_state to authenticated;
+
+-- 6) 확인용 (실행 결과로 rowsecurity = true 가 보이면 됨) -------------
 select tablename, rowsecurity from pg_tables where tablename = 'doc_state';
