@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>문서 서재 — PDF 책 보기</title>
+<style>
+:root{
+  --bg:#f6f4ef; --fg:#1f1d1a; --muted:#5e5850; --line:#d9d3c7;
+  --card:#ffffff; --stage:#e4dfd4; --accent:#7a3e1d; --accent-fg:#ffffff;
+  --focus:#1a5fb4; --shadow:0 2px 10px rgba(0,0,0,.18);
+  --bar-h:56px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#1c1b19; --fg:#ece8e1; --muted:#b4ada2; --line:#3a3733;
+    --card:#262421; --stage:#121110; --accent:#e0a477; --accent-fg:#1c1b19;
+    --focus:#8ab4f8; --shadow:0 2px 14px rgba(0,0,0,.6);
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--fg);
+  font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;}
+[hidden]{display:none !important}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.35em;
+  min-height:44px;min-width:44px;padding:0 14px;border-radius:10px;
+  border:1px solid var(--line);background:var(--card);}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn[aria-pressed="true"]{color:var(--accent);border-color:var(--accent)}
+
+.bar{display:flex;align-items:center;gap:8px;min-height:var(--bar-h);padding:6px 12px;
+  background:var(--bg);border-bottom:1px solid var(--line)}
+.bar h1{font-size:18px;margin:0;font-weight:700}
+
+/* ---------- 서재 ---------- */
+#shelf{min-height:100%}
+.shelf-main{max-width:880px;margin:0 auto;padding:20px 16px 48px}
+.drop{border:2px dashed var(--line);border-radius:16px;padding:24px 18px;text-align:center;background:var(--card)}
+.drop.over{border-color:var(--accent)}
+.drop p{margin:0 0 14px;color:var(--muted)}
+.drop .hint{margin:12px 0 0;font-size:15px}
+.note{margin:14px 0 0;padding:10px 14px;border-radius:10px;background:var(--card);border-left:4px solid var(--accent);font-size:15px}
+.shelf-main h2{font-size:17px;margin:28px 0 10px}
+.doc-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.doc-item{display:flex;align-items:stretch;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px}
+.doc-open{flex:1;display:flex;gap:12px;align-items:center;text-align:left;background:none;border:0;padding:4px;border-radius:8px;min-height:44px}
+.doc-open img,.doc-open .noimg{width:54px;height:72px;object-fit:cover;border-radius:4px;border:1px solid var(--line);background:#fff;flex:none}
+.doc-name{font-weight:600;word-break:break-all}
+.doc-meta{font-size:14px;color:var(--muted)}
+.doc-del{align-self:center}
+
+/* ---------- 동기화 상자 ---------- */
+.sync{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.sync h2{margin:0 0 6px !important;font-size:16px !important}
+.sync p{margin:4px 0}
+.sync .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:flex-end}
+.sync .field{display:flex;flex-direction:column;flex:1 1 200px}
+.sync label{font-size:14px;color:var(--muted)}
+.sync input{min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.sync .err{color:#b3261e}
+@media (prefers-color-scheme: dark){ .sync .err{color:#ffb4ab} }
+.doc-meta.nofile{color:var(--accent)}
+
+/* ---------- 읽기 화면 ---------- */
+#reader{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--stage)}
+.reader-bar .doc-title{flex:1;min-width:0;font-size:16px;font-weight:600;margin:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wide-only{display:none}
+.side-only{display:none}
+@media (min-width:768px){ .wide-only{display:inline-flex} }
+
+#stage{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;
+  padding:12px;touch-action:pan-y pinch-zoom;user-select:none;-webkit-user-select:none}
+#stage:focus{outline:none}
+#stage.zoomed{overflow:auto;display:block;touch-action:auto}
+#spread{display:flex;align-items:flex-start;justify-content:center;margin:auto}
+#stage.zoomed #spread{width:max-content;min-width:100%;min-height:100%;align-items:center}
+.page{position:relative;background:#fff;box-shadow:var(--shadow);line-height:0}
+.page canvas{display:block}
+.page.left::after,.page.right::after{content:"";position:absolute;top:0;bottom:0;width:28px;pointer-events:none}
+.page.left::after{right:0;background:linear-gradient(to left,rgba(0,0,0,.16),rgba(0,0,0,0))}
+.page.right::after{left:0;background:linear-gradient(to right,rgba(0,0,0,.16),rgba(0,0,0,0))}
+.page .ribbon{position:absolute;top:-2px;right:14px;width:16px;height:34px;background:#c0392b;
+  clip-path:polygon(0 0,100% 0,100% 100%,50% 78%,0 100%)}
+.loading{color:var(--muted);line-height:1.6}
+
+.nav{border-top:1px solid var(--line);border-bottom:0;gap:6px}
+.nav input[type=range]{flex:1;min-width:60px;height:44px;accent-color:var(--accent)}
+.goto{display:flex;align-items:center;gap:4px;white-space:nowrap}
+.goto input{width:4.2em;min-height:44px;text-align:center;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.nav .arrow{font-size:22px;font-weight:700}
+
+/* ---------- 노트북: 제목줄·쪽 이동줄을 왼쪽 옆줄로 ----------
+   위아래 줄(각 56px)을 옆으로 옮기면 그만큼 쪽 높이가 커짐.
+   양쪽 보기는 보통 높이가 모자라고 폭이 남으므로 이득. */
+@media (min-width:1024px) and (orientation:landscape){
+  #reader{display:grid;grid-template-columns:208px 1fr;grid-template-rows:auto 1fr auto}
+  #reader::before{content:"";grid-column:1;grid-row:1 / 4;background:var(--bg);border-right:1px solid var(--line)}
+  .reader-bar,.nav{grid-column:1;position:relative;z-index:1;background:transparent;border:0;
+    flex-wrap:wrap;align-content:flex-start;padding:12px}
+  .reader-bar{grid-row:1}
+  .nav{grid-row:3;padding-bottom:16px}
+  #stage{grid-column:2;grid-row:1 / 4}
+  .reader-bar > *{flex:1 1 100%}
+  .reader-bar #zoomOutTop,.reader-bar #zoomInTop,
+  .reader-bar #markBtn,.reader-bar #panelBtn{flex:1 1 calc(50% - 4px)}
+  .reader-bar #backBtn{justify-content:flex-start;padding-left:4px}
+  .reader-bar .doc-title{white-space:normal;word-break:keep-all;overflow-wrap:anywhere;
+    font-size:15px;line-height:1.45;padding:4px 4px 10px;border-bottom:1px solid var(--line);margin-bottom:4px}
+  .nav #slider{order:1;flex:1 1 100%}
+  .nav .goto{order:2;flex:1 1 100%;justify-content:center}
+  .nav #prevBtn{order:3;flex:1 1 calc(50% - 3px)}
+  .nav #nextBtn{order:4;flex:1 1 calc(50% - 3px)}
+  #toast{left:calc(50% + 104px)}
+  .side-only{display:inline-flex}
+  .reader-bar #backBtn,.reader-bar #sideHide{flex:1 1 calc(50% - 4px)}
+  .reader-bar #sideHide{justify-content:flex-end;padding-right:4px}
+  /* 옆줄 숨김: 책이 화면 전체 폭을 씀 */
+  #reader.side-off{grid-template-columns:0 1fr}
+  #reader.side-off::before,#reader.side-off .reader-bar,#reader.side-off .nav{display:none}
+  #reader.side-off #toast{left:50%}
+  #reader.side-off #sideShow{display:inline-flex}
+}
+#sideShow{display:none;position:fixed;top:10px;left:10px;z-index:5;gap:6px;
+  background:var(--bg);opacity:.92;box-shadow:var(--shadow);font-size:15px}
+#sideShow:hover,#sideShow:focus-visible{opacity:1}
+
+/* ---------- 패널 ---------- */
+#panel{position:fixed;top:0;right:0;bottom:0;width:min(380px,92vw);background:var(--bg);
+  border-left:1px solid var(--line);box-shadow:-4px 0 18px rgba(0,0,0,.2);display:flex;flex-direction:column;z-index:10}
+.panel-head{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 14px;border-bottom:1px solid var(--line);min-height:var(--bar-h)}
+.panel-head h2{flex:1;margin:0;font-size:17px}
+.tabs{display:flex;gap:4px;padding:8px 10px 0}
+.tabs button{flex:1;min-height:44px;border:0;border-bottom:3px solid transparent;background:none;font-weight:600;color:var(--muted)}
+.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.panel-body{flex:1;overflow:auto;padding:12px 14px 24px}
+.empty{color:var(--muted)}
+.toc,.toc ul{list-style:none;margin:0;padding:0}
+.toc ul{padding-left:16px}
+.toc button{display:block;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:10px 8px;min-height:44px}
+.toc button:hover,.bm-go:hover,.hit:hover{background:var(--card)}
+.toc .lv2 button{padding-left:24px}
+.toc .lv3 button{padding-left:40px;font-size:15px;color:var(--muted)}
+.toc .lv1 button{font-weight:600}
+.find-form{display:flex;gap:6px;margin-bottom:10px}
+.find-form input{flex:1;min-width:0;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.hit{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 8px;min-height:44px}
+.hit b{display:block;font-size:14px;color:var(--accent)}
+.plink{position:absolute;display:block;background:transparent;border:0;padding:0;margin:0;cursor:pointer;border-radius:2px}
+.plink:hover{background:rgba(26,95,180,.14)}
+.bm{border-bottom:1px solid var(--line);padding:10px 0}
+.bm-row{display:flex;align-items:center;gap:6px}
+.bm-go{flex:1;text-align:left;background:none;border:0;border-radius:8px;min-height:44px;padding:0 8px;font-weight:600}
+.bm label{display:block;font-size:14px;color:var(--muted);margin:6px 0 2px 8px}
+.bm input{width:100%;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.set{margin:0 0 18px}
+.set h3{font-size:15px;margin:0 0 8px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.check{display:flex;align-items:center;gap:10px;min-height:44px}
+.check input{width:22px;height:22px;accent-color:var(--accent)}
+.help{font-size:14px;color:var(--muted);margin:6px 0 0}
+kbd{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:4px;padding:0 5px;background:var(--card)}
+
+#toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);max-width:90vw;
+  background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:20;font-size:15px}
+</style>
+</head>
+<body>
+
+<!-- ================= 서재 ================= -->
+<section id="shelf" aria-labelledby="shelfTitle">
+  <header class="bar"><h1 id="shelfTitle">문서 서재</h1></header>
+  <main class="shelf-main">
+    <div class="drop" id="drop">
+      <p>PDF를 이 기기에서 바로 엽니다. PDF 파일은 어디로도 올라가지 않고 이 브라우저 안에만 보관됩니다. (동기화를 켜면 책갈피와 읽던 쪽만 서버에 저장됩니다.)</p>
+      <button type="button" class="btn primary" id="openBtn">PDF 열기</button>
+      <input type="file" id="fileInput" accept="application/pdf,.pdf" multiple class="sr-only" tabindex="-1" aria-hidden="true">
+      <p class="hint">노트북에서는 파일을 여기에 끌어다 놓아도 됩니다. 같은 이름의 파일을 다시 열면 새 판으로 바뀌고 책갈피는 그대로 남습니다.</p>
+    </div>
+    <p id="storeNote" class="note" hidden></p>
+    <section class="sync" id="syncBox" aria-labelledby="syncTitle">
+      <h2 id="syncTitle">기기 간 동기화</h2>
+      <p id="syncState">확인 중…</p>
+      <form id="loginForm" hidden novalidate>
+        <div class="row">
+          <div class="field"><label for="email">이메일</label><input id="email" type="email" autocomplete="username" inputmode="email" required></div>
+          <div class="field"><label for="pw">비밀번호 (8자 이상)</label><input id="pw" type="password" autocomplete="current-password" minlength="8" required></div>
+        </div>
+        <div class="row">
+          <button type="submit" class="btn primary" id="loginBtn">로그인</button>
+          <button type="button" class="btn" id="signupBtn">처음 가입</button>
+        </div>
+      </form>
+      <div class="row" id="syncActions" hidden>
+        <button type="button" class="btn" id="syncNow">지금 동기화</button>
+        <button type="button" class="btn" id="logoutBtn">로그아웃</button>
+      </div>
+      <p id="syncMsg" role="alert"></p>
+    </section>
+    <h2 id="recentTitle">최근 문서</h2>
+    <p id="emptyShelf" class="empty">아직 연 문서가 없습니다.</p>
+    <ul id="docList" class="doc-list" aria-labelledby="recentTitle"></ul>
+  </main>
+</section>
+
+<!-- ================= 읽기 화면 ================= -->
+<section id="reader" hidden aria-labelledby="docTitle">
+  <header class="bar reader-bar">
+    <button type="button" class="btn ghost" id="backBtn">‹ 서재</button>
+    <button type="button" class="btn ghost side-only" id="sideHide" aria-label="옆줄 숨기기 (S 키)" title="옆줄 숨기기 (S)">◀ 숨기기</button>
+    <h1 id="docTitle" class="doc-title"></h1>
+    <button type="button" class="btn wide-only" id="modeBtnTop"></button>
+    <button type="button" class="btn wide-only" id="zoomOutTop" aria-label="축소">−</button>
+    <button type="button" class="btn wide-only" id="zoomInTop" aria-label="확대">+</button>
+    <button type="button" class="btn" id="markBtn" aria-pressed="false">☆<span class="sr-only">이 쪽 책갈피</span></button>
+    <button type="button" class="btn" id="panelBtn" aria-expanded="false" aria-controls="panel">목차</button>
+  </header>
+
+  <button type="button" class="btn" id="sideShow" aria-label="옆줄 보이기 (S 키)" title="옆줄 보이기 (S)"><span aria-hidden="true">☰</span><span id="sidePage"></span></button>
+
+  <div id="stage" tabindex="-1">
+    <div id="spread" role="group" aria-label="문서 쪽"></div>
+  </div>
+
+  <footer class="bar nav">
+    <button type="button" class="btn arrow" id="prevBtn" aria-label="이전 쪽">‹</button>
+    <label for="slider" class="sr-only">쪽 위치</label>
+    <input type="range" id="slider" min="1" max="1" value="1">
+    <form class="goto" id="gotoForm">
+      <label for="pageInput" class="sr-only">이동할 쪽 번호</label>
+      <input id="pageInput" inputmode="numeric" autocomplete="off">
+      <span id="pageTotal">/ 0</span>
+    </form>
+    <button type="button" class="btn arrow" id="nextBtn" aria-label="다음 쪽">›</button>
+  </footer>
+
+  <aside id="panel" hidden aria-labelledby="panelTitle">
+    <div class="panel-head">
+      <h2 id="panelTitle" tabindex="-1">목차 · 책갈피</h2>
+      <button type="button" class="btn ghost" id="panelClose" aria-label="패널 닫기">✕</button>
+    </div>
+    <div class="tabs" role="tablist" aria-label="패널 메뉴">
+      <button type="button" role="tab" id="tab-toc" aria-controls="pane-toc" aria-selected="true">목차</button>
+      <button type="button" role="tab" id="tab-find" aria-controls="pane-find" aria-selected="false" tabindex="-1">찾기</button>
+      <button type="button" role="tab" id="tab-bm" aria-controls="pane-bm" aria-selected="false" tabindex="-1">책갈피</button>
+      <button type="button" role="tab" id="tab-set" aria-controls="pane-set" aria-selected="false" tabindex="-1">보기 설정</button>
+    </div>
+    <div class="panel-body">
+      <div role="tabpanel" id="pane-toc" aria-labelledby="tab-toc"></div>
+      <div role="tabpanel" id="pane-find" aria-labelledby="tab-find" hidden>
+        <form class="find-form" id="findForm" role="search">
+          <label for="findInput" class="sr-only">문서에서 찾을 말</label>
+          <input id="findInput" type="search" autocomplete="off" placeholder="예: RLS, 화면 ID">
+          <button type="submit" class="btn">찾기</button>
+        </form>
+        <p id="findStatus" class="help" aria-live="polite"></p>
+        <div id="findList"></div>
+      </div>
+      <div role="tabpanel" id="pane-bm" aria-labelledby="tab-bm" hidden></div>
+      <div role="tabpanel" id="pane-set" aria-labelledby="tab-set" hidden>
+        <div class="set">
+          <h3 id="modeLabel">보기 방식</h3>
+          <div class="seg" role="radiogroup" aria-labelledby="modeLabel" id="modeGroup"></div>
+          <p class="help">자동: 가로가 넓은 화면(1024px 이상, 가로 방향)에서는 양쪽, 그 밖에는 한 면.</p>
+        </div>
+        <div class="set">
+          <label class="check"><input type="checkbox" id="coverChk"> 첫 쪽(표지)은 따로 보기</label>
+          <p class="help">양쪽 보기에서 2·3쪽, 4·5쪽처럼 펼쳐집니다. 끄면 1·2쪽부터 짝을 짓습니다.</p>
+        </div>
+        <div class="set">
+          <h3>확대</h3>
+          <div class="seg">
+            <button type="button" class="btn" id="zoomOut" aria-label="축소">−</button>
+            <span id="zoomVal" aria-live="polite" style="min-width:4em;text-align:center;align-self:center">100%</span>
+            <button type="button" class="btn" id="zoomIn" aria-label="확대">+</button>
+            <button type="button" class="btn" id="zoomReset">맞춤</button>
+          </div>
+        </div>
+        <div class="set">
+          <button type="button" class="btn" id="fsBtn">전체 화면</button>
+        </div>
+        <div class="set">
+          <h3>단축키 (노트북)</h3>
+          <p class="help"><kbd>←</kbd> <kbd>→</kbd> 쪽 넘김 · <kbd>Home</kbd> <kbd>End</kbd> 처음·끝 · <kbd>B</kbd> 책갈피 · <kbd>T</kbd> 목차 · <kbd>/</kbd> 찾기 · <kbd>S</kbd> 옆줄 숨기기·보이기 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>Esc</kbd> 패널 닫기</p>
+          <p class="help">휴대폰: 화면 왼쪽·오른쪽을 누르거나 옆으로 밀어 넘깁니다.</p>
+        </div>
+      </div>
+    </div>
+  </aside>
+</section>
+
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<div id="live" class="sr-only" aria-live="polite"></div>
+
+<script src="lib/pdf.min.js"></script>
+<script src="config.js"></script>
+<script src="lib/supabase.js"></script>
+<script>
+"use strict";
+(() => {
+/* =========================================================
+   0. 기본 준비
+   ========================================================= */
+const $ = (id) => document.getElementById(id);
+const BASE = new URL(".", document.baseURI).href;
+let pdfjs = window.pdfjsLib;
+
+/** DOM 요소를 만드는 작은 도우미 (innerHTML을 쓰지 않기 위해) */
+function el(tag, props = {}, kids = []) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "text") n.textContent = v;
+    else if (k === "class") n.className = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else if (v !== undefined && v !== null && v !== false) n.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of [].concat(kids)) if (c) n.append(c);
+  return n;
+}
+
+let toastTimer = 0;
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
+}
+function announce(msg) { $("live").textContent = msg; }
+
+/* =========================================================
+   1. 저장소 (IndexedDB) — 안 되면 메모리로 대신
+   files: 이름 → PDF 파일(Blob) / meta: 이름 → 쪽수·마지막 쪽·책갈피 등
+   ========================================================= */
+const Store = (() => {
+  let db = null;
+  const mem = { files: new Map(), meta: new Map() };
+  function req(r) { return new Promise((ok, no) => { r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }); }
+  async function open() {
+    try {
+      const r = indexedDB.open("pdf-bookshelf", 1);
+      r.onupgradeneeded = () => {
+        r.result.createObjectStore("files");
+        r.result.createObjectStore("meta");
+      };
+      db = await req(r);
+      return true;
+    } catch (e) { db = null; return false; }
+  }
+  function tx(store, mode) { return db.transaction(store, mode).objectStore(store); }
+  return {
+    open,
+    get persistent() { return !!db; },
+    async get(store, key) {
+      if (!db) return mem[store].get(key);
+      try { return await req(tx(store, "readonly").get(key)); } catch (e) { return mem[store].get(key); }
+    },
+    async put(store, key, val) {
+      mem[store].set(key, val);
+      if (!db) return;
+      try { await req(tx(store, "readwrite").put(val, key)); } catch (e) { /* 메모리에는 남아 있음 */ }
+    },
+    async del(key) {
+      mem.files.delete(key); mem.meta.delete(key);
+      if (!db) return;
+      try { await req(tx("files", "readwrite").delete(key)); await req(tx("meta", "readwrite").delete(key)); } catch (e) {}
+    },
+    async allMeta() {
+      if (!db) return [...mem.meta.values()];
+      try { return await req(tx("meta", "readonly").getAll()); } catch (e) { return [...mem.meta.values()]; }
+    }
+  };
+})();
+
+const Prefs = {
+  get(k, d) { try { const v = localStorage.getItem("pdfbook." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("pdfbook." + k, JSON.stringify(v)); } catch (e) {} }
+};
+
+/* =========================================================
+   2. 서재 화면
+   ========================================================= */
+const thumbURLs = [];
+function fmtDate(t) {
+  if (!t) return "";
+  const d = new Date(t);
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+async function renderShelf() {
+  thumbURLs.splice(0).forEach((u) => URL.revokeObjectURL(u));
+  const list = (await Store.allMeta()).sort((a, b) => (b.openedAt || 0) - (a.openedAt || 0));
+  const ul = $("docList");
+  ul.replaceChildren();
+  $("emptyShelf").hidden = list.length > 0;
+  for (const m of list) {
+    let img;
+    if (m.thumb) {
+      const u = URL.createObjectURL(m.thumb); thumbURLs.push(u);
+      img = el("img", { src: u, alt: "" });
+    } else img = el("span", { class: "noimg", "aria-hidden": "true" });
+    const bmN = (m.bookmarks || []).length;
+    const del = el("button", { type: "button", class: "btn doc-del", text: "삭제", "aria-label": `${m.name} 삭제` });
+    let armed = 0;
+    del.addEventListener("click", async () => {
+      if (!armed) {
+        del.textContent = "정말 삭제"; armed = setTimeout(() => { del.textContent = "삭제"; armed = 0; }, 3000);
+        return;
+      }
+      clearTimeout(armed);
+      await Store.del(m.name);
+      Sync.remove(m.name);                     // 동기화 기록에서도 지움 (안 그러면 다음 동기화 때 되살아남)
+      toast("삭제했습니다.");
+      renderShelf();
+    });
+    ul.append(el("li", { class: "doc-item" }, [
+      el("button", { type: "button", class: "doc-open", onclick: () => openStored(m.name) }, [
+        img,
+        el("span", {}, [
+          el("span", { class: "doc-name", text: m.name }),
+          el("br"),
+          m.hasFile === false
+            ? el("span", { class: "doc-meta nofile", text: `이 기기에는 PDF가 없습니다 · 눌러서 같은 이름의 파일 넣기 · 책갈피 ${bmN}개 · ${m.lastPage || 1}쪽까지 읽음` })
+            : el("span", { class: "doc-meta", text: `${m.lastPage || 1} / ${m.pages || "?"}쪽 · 책갈피 ${bmN}개 · ${fmtDate(m.openedAt)}` })
+        ])
+      ]),
+      del
+    ]));
+  }
+}
+
+function isPdf(f) { return f && (f.type === "application/pdf" || /\.pdf$/i.test(f.name)); }
+
+async function addFiles(files) {
+  const pdfs = [...files].filter(isPdf);
+  if (!pdfs.length) { toast("PDF 파일만 열 수 있습니다."); return; }
+  if (pdfs.length < files.length) toast("PDF가 아닌 파일은 건너뛰었습니다.");
+  for (const f of pdfs) {
+    const prev = await Store.get("meta", f.name);
+    await Store.put("files", f.name, f);
+    await Store.put("meta", f.name, {
+      name: f.name, size: f.size, pages: prev ? prev.pages : 0,
+      lastPage: prev ? prev.lastPage : 1, bookmarks: prev ? prev.bookmarks : [],
+      thumb: null, addedAt: Date.now(), openedAt: Date.now(),
+      hasFile: true, updatedAt: prev ? prev.updatedAt || 0 : 0
+    });
+    if (prev) toast(`'${f.name}' 새 판으로 바꿨습니다. 책갈피는 남아 있습니다.`);
+  }
+  if (pdfs.length === 1) openStored(pdfs[0].name);
+  else { renderShelf(); toast(`${pdfs.length}개 문서를 서재에 넣었습니다.`); }
+}
+
+$("openBtn").addEventListener("click", () => $("fileInput").click());
+$("fileInput").addEventListener("change", (e) => { if (e.target.files.length) addFiles(e.target.files); e.target.value = ""; });
+const drop = $("drop");
+["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => { if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+
+/* =========================================================
+   3. 읽기 상태
+   ========================================================= */
+const S = {
+  pdf: null, meta: null, cur: 1, n: 0,
+  mode: Prefs.get("mode", "auto"),       // auto | single | double
+  cover: Prefs.get("cover", true),
+  zoom: 1,
+  sizes: new Map(),                      // 쪽 → {w,h} (배율 1 기준)
+  lines: new Map(),                      // 쪽 → 글줄 목록 (자동 목차·찾기용)
+  doc: 0,                                // 문서가 바뀔 때마다 늘어남 (오래 걸리는 작업 중단용)
+  cache: new Map(),                      // "쪽|배율" → Promise<canvas>
+  token: 0
+};
+const ZOOMS = [1, 1.25, 1.5, 2, 2.5, 3];
+
+function isDouble() {
+  if (S.mode === "single") return false;
+  if (S.mode === "double") return true;
+  return window.innerWidth >= 1024 && window.innerWidth > window.innerHeight;
+}
+/** p쪽이 들어 있는 펼침면의 쪽 번호들 */
+function spreadOf(p) {
+  p = Math.min(Math.max(1, p), S.n);
+  if (!isDouble()) return [p];
+  let start;
+  if (S.cover) { if (p === 1) return [1]; start = p % 2 === 0 ? p : p - 1; }
+  else start = p % 2 === 1 ? p : p - 1;
+  return start + 1 <= S.n ? [start, start + 1] : [start];
+}
+
+/* =========================================================
+   4. 문서 열기
+   ========================================================= */
+async function openStored(name) {
+  if (!pdfjs) { toast("PDF 보기 모듈을 불러오지 못했습니다. 새로 고침 후 다시 해 주세요."); return; }
+  const file = await Store.get("files", name);
+  if (!file) {
+    toast(`이 기기에는 '${name}' 파일이 없습니다. 같은 이름의 PDF를 넣어 주세요.`);
+    $("fileInput").click();
+    return;
+  }
+  await Sync.pullOne(name);                   // 다른 기기에서 더 읽었으면 그 쪽부터 열리도록
+  const meta = await Store.get("meta", name);
+  if (!meta) { toast("저장된 문서 정보를 찾지 못했습니다. 다시 열어 주세요."); renderShelf(); return; }
+  try {
+    const data = new Uint8Array(await file.arrayBuffer());
+    const pdf = await pdfjs.getDocument({
+      data,
+      useSystemFonts: true,             // 파일에 글꼴이 안 들어 있으면 기기 글꼴로 대신
+      isEvalSupported: false            // PDF 안의 글꼴 코드를 eval로 실행하지 않음 (보안)
+    }).promise;
+    if (S.pdf) S.pdf.destroy();
+    S.pdf = pdf; S.n = pdf.numPages; S.meta = meta;
+    S.sizes.clear(); S.cache.clear(); S.lines.clear(); S.doc++; S.tocOffset = 0; S.zoom = 1;
+    $("findList").replaceChildren(); $("findStatus").textContent = "";
+    meta.pages = S.n; meta.openedAt = Date.now();
+    meta.bookmarks = (meta.bookmarks || []).filter((b) => b.page <= S.n);
+    if (!meta.thumb) meta.thumb = await makeThumb();
+    await Store.put("meta", name, meta);
+
+    $("docTitle").textContent = name.replace(/\.pdf$/i, "");
+    document.title = $("docTitle").textContent + " — 문서 서재";
+    $("slider").max = S.n; $("pageTotal").textContent = "/ " + S.n;
+    $("shelf").hidden = true; $("reader").hidden = false;
+    closePanel(false);
+    buildToc();
+    renderBookmarks();
+    syncSettings();
+    S.cur = spreadOf(Math.min(meta.lastPage || 1, S.n))[0];
+    await show();
+    $("stage").focus({ preventScroll: true });
+  } catch (e) {
+    const msg = e && e.name === "PasswordException" ? "암호가 걸린 PDF는 열 수 없습니다."
+      : e && e.name === "InvalidPDFException" ? "PDF 파일이 손상되었거나 형식이 맞지 않습니다."
+      : "문서를 여는 중 문제가 생겼습니다.";
+    toast(msg);
+  }
+}
+
+async function makeThumb() {
+  try {
+    const page = await S.pdf.getPage(1);
+    const vp1 = page.getViewport({ scale: 1 });
+    const vp = page.getViewport({ scale: 160 / vp1.width });
+    const c = document.createElement("canvas");
+    c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    return await new Promise((ok) => c.toBlob((b) => ok(b), "image/jpeg", 0.8));
+  } catch (e) { return null; }
+}
+
+function goShelf() {
+  closePanel(false);
+  $("reader").hidden = true; $("shelf").hidden = false;
+  document.title = "문서 서재 — PDF 책 보기";
+  if (S.pdf) { S.pdf.destroy(); S.pdf = null; }
+  S.cache.clear();
+  renderShelf();
+  $("openBtn").focus();
+}
+$("backBtn").addEventListener("click", goShelf);
+
+/* 옆줄 숨기기·보이기 (노트북 가로 화면에서만 의미 있음) */
+function setSide(off, focus) {
+  $("reader").classList.toggle("side-off", off);
+  Prefs.set("sideOff", off);
+  if (focus) (off ? $("sideShow") : $("sideHide")).focus();
+}
+$("sideHide").addEventListener("click", () => setSide(true, true));
+$("sideShow").addEventListener("click", () => setSide(false, true));
+setSide(Prefs.get("sideOff", false), false);
+
+/* =========================================================
+   5. 쪽 그리기
+   ========================================================= */
+async function pageSize(p) {
+  if (!S.sizes.has(p)) {
+    const pg = await S.pdf.getPage(p);
+    const vp = pg.getViewport({ scale: 1 });
+    S.sizes.set(p, { w: vp.width, h: vp.height });
+  }
+  return S.sizes.get(p);
+}
+
+/** 같은 쪽·같은 배율이면 그려 둔 캔버스를 다시 씀 (최근 12장만 보관) */
+function canvasFor(p, scale) {
+  const key = p + "|" + scale.toFixed(3);
+  if (S.cache.has(key)) {
+    const v = S.cache.get(key); S.cache.delete(key); S.cache.set(key, v); return v;
+  }
+  const job = (async () => {
+    const pg = await S.pdf.getPage(p);
+    const vp = pg.getViewport({ scale });
+    const c = document.createElement("canvas");
+    c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+    await pg.render({ canvasContext: c.getContext("2d"), viewport: vp }).promise;
+    return c;
+  })();
+  job.catch(() => S.cache.delete(key));
+  S.cache.set(key, job);
+  while (S.cache.size > 12) S.cache.delete(S.cache.keys().next().value);
+  return job;
+}
+
+async function layout(pages) {
+  const st = $("stage");
+  const availW = Math.max(100, st.clientWidth - 24);
+  const availH = Math.max(100, st.clientHeight - 24);
+  const sz = await Promise.all(pages.map(pageSize));
+  const totalW = sz.reduce((a, s) => a + s.w, 0);
+  const maxH = Math.max(...sz.map((s) => s.h));
+  const fit = Math.min(availW / totalW, availH / maxH) * S.zoom;
+  return { sz, fit };
+}
+
+async function show() {
+  if (!S.pdf) return;
+  const token = ++S.token;
+  const pages = spreadOf(S.cur);
+  S.cur = pages[0];
+  updateNav(pages);
+
+  const { sz, fit } = await layout(pages);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  const scale = fit * dpr;
+  let canvases;
+  try { canvases = await Promise.all(pages.map((p) => canvasFor(p, scale))); }
+  catch (e) { if (token === S.token) toast("쪽을 그리는 중 문제가 생겼습니다."); return; }
+  if (token !== S.token) return;           // 그사이 다른 쪽으로 넘어갔으면 버림
+
+  const marks = new Set((S.meta.bookmarks || []).map((b) => b.page));
+  const kids = pages.map((p, i) => {
+    const c = canvases[i];
+    c.style.width = Math.floor(sz[i].w * fit) + "px";
+    c.style.height = Math.floor(sz[i].h * fit) + "px";
+    c.setAttribute("role", "img");
+    c.setAttribute("aria-label", `${p}쪽`);
+    const side = pages.length === 2 ? (i === 0 ? "left" : "right") : "";
+    return el("div", { class: "page " + side }, [c, marks.has(p) ? el("span", { class: "ribbon", "aria-hidden": "true" }) : null]);
+  });
+  $("spread").replaceChildren(...kids);
+  pages.forEach((p, i) => addLinks(kids[i], p, fit, token));
+  $("stage").classList.toggle("zoomed", S.zoom > 1);
+  // 쪽이 바뀌면 맨 위로 (확대 중에도 새 쪽은 위에서부터 읽도록)
+  const shownKey = pages.join(",");
+  if (S.zoom === 1 || S.lastShown !== shownKey) $("stage").scrollTo({ top: 0, left: S.zoom === 1 ? 0 : $("stage").scrollLeft });
+  S.lastShown = shownKey;
+
+  saveLastPage();
+  prefetch(pages, scale);
+}
+
+/** 다음·이전 펼침면을 미리 그려 둠 → 넘김이 빨라짐 */
+function prefetch(pages, scale) {
+  const next = pages[pages.length - 1] + 1, prev = pages[0] - 1;
+  const want = [];
+  if (next <= S.n) want.push(...spreadOf(next));
+  if (prev >= 1) want.push(...spreadOf(prev));
+  setTimeout(() => want.forEach((p) => canvasFor(p, scale).catch(() => {})), 120);
+}
+
+/** 책갈피·마지막 쪽이 바뀌었을 때: 고친 시각을 적고, 저장하고, 동기화 예약 */
+function metaChanged() {
+  S.meta.updatedAt = Date.now();
+  Store.put("meta", S.meta.name, S.meta);
+  Sync.schedulePush(S.meta);
+}
+
+let saveTimer = 0;
+function saveLastPage() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    if (!S.meta) return;
+    if (S.meta.lastPage === S.cur) return;
+    S.meta.lastPage = S.cur;
+    metaChanged();
+  }, 400);
+}
+
+function updateNav(pages) {
+  const label = pages.length === 2 ? `${pages[0]}–${pages[1]}` : String(pages[0]);
+  $("pageInput").value = label;
+  $("slider").value = pages[0];
+  $("slider").setAttribute("aria-valuetext", `${label}쪽 / 전체 ${S.n}쪽`);
+  $("prevBtn").disabled = pages[0] <= 1;
+  $("nextBtn").disabled = pages[pages.length - 1] >= S.n;
+  const marked = (S.meta.bookmarks || []).some((b) => pages.includes(b.page));
+  $("markBtn").setAttribute("aria-pressed", String(marked));
+  $("markBtn").firstChild.textContent = marked ? "★" : "☆";
+  $("sidePage").textContent = `${label} / ${S.n}`;
+  announce(`${label}쪽, 전체 ${S.n}쪽`);
+}
+
+/* =========================================================
+   6. 넘기기 (버튼·키보드·누르기·밀기)
+   ========================================================= */
+function go(p) {
+  if (!S.pdf) return;
+  p = Math.min(Math.max(1, p), S.n);
+  S.cur = spreadOf(p)[0];
+  show();
+}
+function next() { const s = spreadOf(S.cur); if (s[s.length - 1] < S.n) go(s[s.length - 1] + 1); }
+function prev() { if (S.cur > 1) go(S.cur - 1); }
+
+$("prevBtn").addEventListener("click", prev);
+$("nextBtn").addEventListener("click", next);
+$("slider").addEventListener("input", (e) => { $("pageInput").value = e.target.value; });
+$("slider").addEventListener("change", (e) => go(+e.target.value));
+$("gotoForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const v = parseInt($("pageInput").value, 10);
+  if (Number.isFinite(v) && v >= 1 && v <= S.n) { go(v); $("stage").focus({ preventScroll: true }); }
+  else { toast(`1부터 ${S.n} 사이의 쪽 번호를 넣어 주세요.`); updateNav(spreadOf(S.cur)); }
+});
+$("pageInput").addEventListener("focus", (e) => e.target.select());
+
+document.addEventListener("keydown", (e) => {
+  if ($("reader").hidden) return;
+  const t = e.target;
+  const typing = t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA");
+  if (e.key === "Escape" && !$("panel").hidden) { closePanel(true); return; }
+  if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+  const inPanel = $("panel").contains(t);
+  switch (e.key) {
+    case "ArrowRight": case "PageDown": if (inPanel) return; e.preventDefault(); next(); break;
+    case "ArrowLeft": case "PageUp": if (inPanel) return; e.preventDefault(); prev(); break;
+    case " ": if (inPanel || (t && t.tagName === "BUTTON")) return; e.preventDefault(); e.shiftKey ? prev() : next(); break;
+    case "Home": if (inPanel) return; e.preventDefault(); go(1); break;
+    case "End": if (inPanel) return; e.preventDefault(); go(S.n); break;
+    case "b": case "B": toggleMark(); break;
+    case "s": case "S": setSide(!$("reader").classList.contains("side-off"), false); break;
+    case "/": e.preventDefault(); openPanel("find"); $("findInput").focus(); break;
+    case "t": case "T": $("panel").hidden ? openPanel("toc") : closePanel(true); break;
+    case "+": case "=": zoomStep(1); break;
+    case "-": case "_": zoomStep(-1); break;
+  }
+});
+
+// 화면 왼쪽 30% 누르면 이전, 오른쪽 30% 누르면 다음 (확대 중에는 끔)
+let swiped = false;
+$("stage").addEventListener("click", (e) => {
+  if (swiped) { swiped = false; return; }
+  if (S.zoom > 1) return;
+  const r = $("stage").getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width;
+  if (x < 0.3) prev(); else if (x > 0.7) next();
+});
+// 손가락으로 옆으로 밀기
+let tStart = null;
+$("stage").addEventListener("touchstart", (e) => {
+  tStart = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null;
+}, { passive: true });
+$("stage").addEventListener("touchend", (e) => {
+  if (!tStart || S.zoom > 1) return;
+  const vv = window.visualViewport;
+  if (vv && vv.scale > 1.05) { tStart = null; return; }   // 두 손가락으로 확대한 상태면 넘기지 않음
+  const t = e.changedTouches[0];
+  const dx = t.clientX - tStart.x, dy = t.clientY - tStart.y;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && Date.now() - tStart.t < 800) {
+    swiped = true; dx < 0 ? next() : prev();
+    setTimeout(() => { swiped = false; }, 400);
+  }
+  tStart = null;
+}, { passive: true });
+
+// 화면 크기·방향이 바뀌면 다시 그림
+let rsTimer = 0;
+new ResizeObserver(() => {
+  clearTimeout(rsTimer);
+  rsTimer = setTimeout(() => { if (S.pdf && !$("reader").hidden) { S.cache.clear(); show(); syncSettings(); } }, 160);
+}).observe($("stage"));
+
+/* =========================================================
+   7. 책갈피
+   ========================================================= */
+function toggleMark() {
+  if (!S.pdf) return;
+  const pages = spreadOf(S.cur);
+  const bms = S.meta.bookmarks || (S.meta.bookmarks = []);
+  const has = bms.filter((b) => pages.includes(b.page));
+  if (has.length) {
+    S.meta.bookmarks = bms.filter((b) => !pages.includes(b.page));
+    toast("책갈피를 뺐습니다.");
+  } else {
+    bms.push({ page: pages[0], memo: "", at: Date.now() });
+    bms.sort((a, b) => a.page - b.page);
+    toast(`${pages[0]}쪽에 책갈피를 꽂았습니다.`);
+  }
+  metaChanged();
+  renderBookmarks();
+  show();
+}
+$("markBtn").addEventListener("click", toggleMark);
+
+function renderBookmarks() {
+  const pane = $("pane-bm");
+  const bms = S.meta ? S.meta.bookmarks || [] : [];
+  if (!bms.length) {
+    pane.replaceChildren(el("p", { class: "empty", text: "책갈피가 없습니다. 위쪽 ☆ 버튼이나 B 키로 꽂을 수 있습니다." }));
+    return;
+  }
+  pane.replaceChildren(...bms.map((b, i) => {
+    const id = "memo-" + i;
+    const memo = el("input", { id, type: "text", value: b.memo || "", maxlength: "80", placeholder: "예: 화면 ID 목록" });
+    memo.addEventListener("change", () => { b.memo = memo.value.trim(); metaChanged(); });
+    return el("div", { class: "bm" }, [
+      el("div", { class: "bm-row" }, [
+        el("button", { type: "button", class: "bm-go", text: `${b.page}쪽` + (b.memo ? ` — ${b.memo}` : ""),
+          onclick: () => { go(b.page); if (window.innerWidth < 1024) closePanel(false); } }),
+        el("button", { type: "button", class: "btn ghost", text: "빼기", "aria-label": `${b.page}쪽 책갈피 빼기`,
+          onclick: () => {
+            S.meta.bookmarks = bms.filter((x) => x !== b);
+            metaChanged();
+            renderBookmarks(); show();
+          } })
+      ]),
+      el("label", { for: id, text: "메모" }),
+      memo
+    ]);
+  }));
+}
+
+/* =========================================================
+   8. 목차 (PDF에 들어 있는 책갈피/개요)
+   ========================================================= */
+async function destToPage(dest) {
+  try {
+    const d = typeof dest === "string" ? await S.pdf.getDestination(dest) : dest;
+    if (!d || !d[0]) return null;
+    return typeof d[0] === "object" ? (await S.pdf.getPageIndex(d[0])) + 1 : d[0] + 1;
+  } catch (e) { return null; }
+}
+/* ---------- PDF 안의 글자를 줄 단위로 읽기 ----------
+   pdf.js는 글자 조각마다 위치(transform)와 폭(width)을 줌.
+   같은 높이(y)의 조각을 한 줄로 묶고, 조각 사이가 벌어져 있으면 띄어쓰기를 넣음. */
+async function pageLines(p) {
+  if (S.lines.has(p)) return S.lines.get(p);
+  const pg = await S.pdf.getPage(p);
+  const tc = await pg.getTextContent();
+  const rows = [];
+  for (const it of tc.items) {
+    if (!it.str || !it.str.trim()) continue;
+    const t = it.transform;
+    const size = Math.round((Math.hypot(t[2], t[3]) || Math.abs(t[3])) * 10) / 10;
+    const y = t[5], x = t[4];
+    let row = rows.find((r) => Math.abs(r.y - y) < Math.max(2, size * 0.45));
+    if (!row) { row = { y, size, parts: [] }; rows.push(row); }
+    row.parts.push({ x, w: it.width || 0, str: it.str, size });
+    if (size > row.size) row.size = size;
+  }
+  rows.sort((a, b) => b.y - a.y);
+  const lines = rows.map((r) => {
+    r.parts.sort((a, b) => a.x - b.x);
+    let text = "", end = null;
+    for (const q of r.parts) {
+      if (end !== null && q.x - end > q.size * 0.18 && !text.endsWith(" ")) text += " ";
+      text += q.str; end = q.x + q.w;
+    }
+    const last = r.parts[r.parts.length - 1];
+    return { y: r.y, size: r.size, x0: r.parts[0].x, x1: last.x + last.w, text: text.replace(/\s+/g, " ").trim() };
+  }).filter((l) => l.text);
+  S.lines.set(p, lines);
+  return lines;
+}
+
+/* ---------- 목차 ----------
+   1) PDF에 목차(개요) 정보가 있으면 그것을 씀
+   2) 없으면 본문보다 큰 글자로 쓰인 줄을 제목으로 보고 자동 목차를 만듦 (한 번 만들면 보관) */
+function tocJump(p) { go(p); if (window.innerWidth < 1024) closePanel(false); }
+
+async function buildToc() {
+  const pane = $("pane-toc");
+  pane.replaceChildren(el("p", { class: "empty", text: "목차를 읽는 중…" }));
+  let outline = null;
+  try { outline = await S.pdf.getOutline(); } catch (e) {}
+  if (outline && outline.length) {
+    const make = (items) => el("ul", {}, items.map((it) => el("li", {}, [
+      el("button", { type: "button", text: it.title || "(제목 없음)", onclick: async () => {
+        const p = await destToPage(it.dest);
+        if (p) tocJump(p); else toast("이 항목의 쪽을 찾지 못했습니다.");
+      } }),
+      it.items && it.items.length ? make(it.items) : null
+    ])));
+    const root = make(outline); root.className = "toc";
+    pane.replaceChildren(root);
+    return;
+  }
+  const m = S.meta;
+  if (m.autoToc && m.autoToc.size === m.size && m.autoToc.v === 4) { showAutoToc(m.autoToc.items); return; }
+  const docId = S.doc;
+  const items = await makeAutoToc((done) => {
+    if (docId === S.doc) pane.replaceChildren(el("p", { class: "empty", text: `PDF에 목차 정보가 없어 자동 목차를 만드는 중… ${done} / ${S.n}쪽` }));
+  }, docId);
+  if (!items || docId !== S.doc) return;
+  m.autoToc = { v: 4, size: m.size, items };
+  Store.put("meta", m.name, m);
+  showAutoToc(items);
+}
+
+/* 문서 앞쪽의 '차례' 쪽 알아보기: 줄 대부분이 쪽 번호로 끝나면 차례 쪽으로 봄 */
+const TOC_LINE = /^(.*?\S)[\s.·…]*(\d{1,4})$/;   // (제목)(점선·빈칸)(쪽 번호)
+function tocEntries(lines, h, p) {
+  const body = lines.filter((l) => l.y > h * 0.09 && l.y < h * 0.91);
+  const hits = body.filter((l) => TOC_LINE.test(l.text) && /[가-힣A-Za-z]/.test(l.text));
+  if (hits.length < 5 || hits.length < body.length * 0.5) return null;
+  // 차례의 쪽 번호는 대개 지금 쪽보다 뒤를 가리킴 (부록 표의 '1.2' 같은 절 번호와 구별)
+  const ahead = hits.filter((l) => +l.text.match(TOC_LINE)[2] >= p - 5).length;
+  return ahead >= hits.length * 0.7 ? hits : null;
+}
+const norm = (t) => t.replace(/[\s.·…]/g, "").toLowerCase();
+
+async function makeAutoToc(progress, docId) {
+  const all = [];
+  const sizeChars = new Map();          // 글자 크기 → 글자 수 (가장 많은 크기 = 본문)
+  const seen = new Map();               // 같은 글줄이 몇 쪽에 나오는지 (머리말·꼬리말 거르기)
+  try {
+    for (let p = 1; p <= S.n; p++) {
+      if (docId !== S.doc) return null;
+      const lines = await pageLines(p);
+      const h = (await pageSize(p)).h;
+      const isToc = !!tocEntries(lines, h, p);              // 차례 쪽의 줄은 제목 후보에서 뺌
+      for (const l of lines) {
+        const edge = l.y < h * 0.09 || l.y > h * 0.91;    // 위·아래 여백 = 머리말·꼬리말 자리
+        const k = Math.round(l.size * 2) / 2;
+        sizeChars.set(k, (sizeChars.get(k) || 0) + l.text.length);
+        const key = l.text.replace(/\d+/g, "#");
+        if (!seen.has(key)) seen.set(key, new Set());
+        seen.get(key).add(p);
+        if (!isToc) all.push({ p, ...l, k, edge, key });
+      }
+      if (p % 5 === 0 || p === S.n) progress(p);
+    }
+  } catch (e) { return []; }
+  let body = 0, max = -1;
+  for (const [k, c] of sizeChars) if (c > max) { max = c; body = k; }
+  const cands = all.filter((l) =>
+    l.k >= body * 1.15 && l.text.length >= 2 && l.text.length <= 80 &&
+    !/^[\d\s.\-–—·|/()]+$/.test(l.text) &&
+    !(l.edge && seen.get(l.key).size >= 3));        // 여백에 되풀이되는 줄은 제목이 아님
+  // 제목 크기가 큰 순서로 최대 3단계. 한 번만 나오는 크기(표지 제목 등)는 단계 자리를 차지하지 않고 1단계로 둠
+  const cnt = new Map();
+  cands.forEach((c) => cnt.set(c.k, (cnt.get(c.k) || 0) + 1));
+  const levels = [...cnt.keys()].filter((k) => cnt.get(k) >= 2).sort((a, b) => b - a).slice(0, 3);
+  const items = [];
+  for (const c of cands) {
+    const lv = cnt.get(c.k) < 2 ? 1 : levels.indexOf(c.k) + 1;
+    if (!lv) continue;
+    const last = items[items.length - 1];
+    // 두 줄로 넘어간 제목은 하나로 합침
+    if (last && last.page === c.p && last.k === c.k && last.y - c.y < c.size * 1.9) {
+      last.title += " " + c.text; last.y = c.y; continue;
+    }
+    items.push({ title: c.text, page: c.p, level: lv, k: c.k, y: c.y });
+    if (items.length >= 400) break;
+  }
+  return items.map(({ title, page, level }) => ({ title, page, level }));
+}
+
+function showAutoToc(items) {
+  calcTocOffset(items);
+  const pane = $("pane-toc");
+  if (!items.length) {
+    pane.replaceChildren(
+      el("p", { class: "empty", text: "목차로 쓸 제목을 찾지 못했습니다." }),
+      el("p", { class: "help", text: "제목과 본문의 글자 크기가 같으면 찾기 어렵습니다. '찾기' 탭에서 낱말로 찾아 이동해 보세요." }));
+    return;
+  }
+  const ul = el("ul", { class: "toc" }, items.map((it) => el("li", { class: "lv" + it.level }, [
+    el("button", { type: "button", text: `${it.title}  · ${it.page}쪽`, onclick: () => tocJump(it.page) })
+  ])));
+  pane.replaceChildren(
+    el("p", { class: "help", text: "PDF에 목차 정보가 없어, 본문보다 큰 글자로 쓰인 제목을 모아 만든 자동 목차입니다." }),
+    ul);
+}
+
+/* 차례에 적힌 쪽 번호와 실제 PDF 쪽 번호의 차이(표지 등으로 밀린 만큼)를 계산.
+   차례 항목 제목과 자동 목차 제목이 같은 것들의 차이 중 가장 흔한 값을 씀 */
+async function calcTocOffset(items) {
+  const docId = S.doc, diffs = new Map();
+  const byTitle = new Map(items.map((it) => [norm(it.title), it.page]));
+  try {
+    for (let p = 1; p <= Math.min(S.n, 20); p++) {
+      const ents = tocEntries(await pageLines(p), (await pageSize(p)).h, p);
+      if (!ents) continue;
+      for (const l of ents) {
+        const m = l.text.match(TOC_LINE);
+        const real = byTitle.get(norm(m[1]));
+        if (real) { const d = real - +m[2]; diffs.set(d, (diffs.get(d) || 0) + 1); }
+      }
+    }
+  } catch (e) { return; }
+  if (docId !== S.doc) return;
+  let best = 0, max = 0;
+  for (const [d, c] of diffs) if (c > max) { max = c; best = d; }
+  S.tocOffset = best;
+}
+
+/* ---------- 찾기 ---------- */
+let findRun = 0;
+$("findForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!S.pdf) return;
+  const q = $("findInput").value.trim();
+  const list = $("findList"), status = $("findStatus");
+  list.replaceChildren();
+  if (q.length < 1) { status.textContent = "찾을 말을 넣어 주세요."; return; }
+  const run = ++findRun, docId = S.doc;
+  const qn = q.replace(/\s+/g, "").toLowerCase();       // 띄어쓰기 차이는 무시
+  let hits = 0;
+  try {
+    for (let p = 1; p <= S.n; p++) {
+      if (run !== findRun || docId !== S.doc) return;
+      if (p % 10 === 1) status.textContent = `찾는 중… ${p} / ${S.n}쪽`;
+      for (const l of await pageLines(p)) {
+        if (!l.text.replace(/\s+/g, "").toLowerCase().includes(qn)) continue;
+        hits++;
+        if (hits <= 200) list.append(el("button", { type: "button", class: "hit", onclick: () => tocJump(p) }, [
+          el("b", { text: `${p}쪽` }), el("span", { text: l.text.length > 90 ? l.text.slice(0, 90) + "…" : l.text })
+        ]));
+      }
+    }
+    status.textContent = hits ? `${hits}곳을 찾았습니다.` + (hits > 200 ? " (앞의 200곳만 보입니다)" : "") : `'${q}'을(를) 찾지 못했습니다.`;
+  } catch (err) { status.textContent = "찾는 중 문제가 생겼습니다."; }
+});
+
+/* ---------- PDF 안의 링크 (목차 쪽의 쪽 이동 링크 등) ----------
+   그림(canvas) 위에 투명한 버튼을 링크 자리에 겹쳐 놓음 */
+async function addLinks(div, p, fit, token) {
+  try {
+    const pg = await S.pdf.getPage(p);
+    const anns = await pg.getAnnotations({ intent: "display" });
+    if (token !== S.token) return;
+    const vp = pg.getViewport({ scale: fit });
+    // 차례 쪽이면 각 줄을 눌러 그 쪽으로 갈 수 있게 함 (PDF에 링크가 없어도)
+    const ents = tocEntries(await pageLines(p), (await pageSize(p)).h, p);
+    if (token !== S.token) return;
+    if (ents && !anns.some((a) => a.subtype === "Link")) {
+      for (const l of ents) {
+        const m = l.text.match(TOC_LINE);
+        const target = +m[2] + (S.tocOffset || 0);
+        if (target < 1 || target > S.n) continue;
+        const [x1, y1, x2, y2] = vp.convertToViewportRectangle([l.x0 - 2, l.y - l.size * 0.35, l.x1 + 2, l.y + l.size * 1.05]);
+        const node = el("button", { type: "button", class: "plink", "aria-label": `${m[1]}, ${target}쪽으로 이동` });
+        node.addEventListener("click", (e) => { e.stopPropagation(); go(+m[2] + (S.tocOffset || 0)); });
+        Object.assign(node.style, { left: Math.min(x1, x2) + "px", top: Math.min(y1, y2) + "px", width: Math.abs(x2 - x1) + "px", height: Math.abs(y2 - y1) + "px" });
+        div.append(node);
+      }
+    }
+    for (const a of anns) {
+      if (a.subtype !== "Link") continue;
+      const [x1, y1, x2, y2] = vp.convertToViewportRectangle(a.rect);
+      const box = { left: Math.min(x1, x2) + "px", top: Math.min(y1, y2) + "px", width: Math.abs(x2 - x1) + "px", height: Math.abs(y2 - y1) + "px" };
+      let node = null;
+      if (a.dest) {
+        node = el("button", { type: "button", class: "plink", "aria-label": "연결된 쪽으로 이동" });
+        node.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const t = await destToPage(a.dest);
+          if (t) go(t); else toast("연결된 쪽을 찾지 못했습니다.");
+        });
+      } else if (a.url && /^https?:\/\//i.test(a.url)) {
+        node = el("a", { class: "plink", href: a.url, target: "_blank", rel: "noopener noreferrer", "aria-label": "바깥 링크: " + a.url });
+        node.addEventListener("click", (e) => e.stopPropagation());
+      }
+      if (node) { Object.assign(node.style, box); div.append(node); }
+    }
+  } catch (e) { /* 링크가 없거나 읽지 못하면 그냥 둠 */ }
+}
+
+/* =========================================================
+   9. 패널·설정·확대
+   ========================================================= */
+const TABS = ["toc", "find", "bm", "set"];
+function selectTab(name) {
+  TABS.forEach((t) => {
+    const on = t === name;
+    $("tab-" + t).setAttribute("aria-selected", String(on));
+    $("tab-" + t).tabIndex = on ? 0 : -1;
+    $("pane-" + t).hidden = !on;
+  });
+}
+TABS.forEach((t, i) => {
+  const b = $("tab-" + t);
+  b.addEventListener("click", () => selectTab(t));
+  b.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    e.preventDefault(); e.stopPropagation();
+    const n = TABS[(i + (e.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length];
+    selectTab(n); $("tab-" + n).focus();
+  });
+});
+function openPanel(tab) {
+  if (tab) selectTab(tab);
+  $("panel").hidden = false;
+  $("panelBtn").setAttribute("aria-expanded", "true");
+  $("panelTitle").focus();
+}
+function closePanel(returnFocus) {
+  $("panel").hidden = true;
+  $("panelBtn").setAttribute("aria-expanded", "false");
+  if (returnFocus) $("panelBtn").focus();
+}
+$("panelBtn").addEventListener("click", () => $("panel").hidden ? openPanel() : closePanel(true));
+$("panelClose").addEventListener("click", () => closePanel(true));
+
+const MODES = [["auto", "자동"], ["single", "한 면"], ["double", "양쪽"]];
+function modeText() {
+  const m = MODES.find((x) => x[0] === S.mode)[1];
+  return S.mode === "auto" ? `자동(${isDouble() ? "양쪽" : "한 면"})` : m;
+}
+function setMode(m) {
+  S.mode = m; Prefs.set("mode", m);
+  S.cache.clear(); syncSettings(); show();
+}
+function syncSettings() {
+  const g = $("modeGroup");
+  g.replaceChildren(...MODES.map(([k, label]) => el("button", {
+    type: "button", class: "btn", role: "radio", "aria-checked": String(S.mode === k),
+    "aria-pressed": String(S.mode === k), text: label, onclick: () => setMode(k)
+  })));
+  $("modeBtnTop").textContent = "보기: " + modeText();
+  $("coverChk").checked = S.cover;
+  $("zoomVal").textContent = Math.round(S.zoom * 100) + "%";
+}
+$("modeBtnTop").addEventListener("click", () => {
+  const i = MODES.findIndex((x) => x[0] === S.mode);
+  setMode(MODES[(i + 1) % MODES.length][0]);
+  toast("보기 방식: " + modeText());
+});
+$("coverChk").addEventListener("change", (e) => { S.cover = e.target.checked; Prefs.set("cover", S.cover); show(); });
+
+function zoomStep(dir) {
+  let i = ZOOMS.indexOf(S.zoom);
+  i = Math.min(ZOOMS.length - 1, Math.max(0, i + dir));
+  if (ZOOMS[i] === S.zoom) return;
+  S.zoom = ZOOMS[i]; syncSettings(); show();
+}
+$("zoomIn").addEventListener("click", () => zoomStep(1));
+$("zoomOut").addEventListener("click", () => zoomStep(-1));
+$("zoomInTop").addEventListener("click", () => zoomStep(1));
+$("zoomOutTop").addEventListener("click", () => zoomStep(-1));
+$("zoomReset").addEventListener("click", () => { S.zoom = 1; syncSettings(); show(); });
+
+$("fsBtn").addEventListener("click", async () => {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen();
+  } catch (e) { toast("이 화면에서는 전체 화면을 쓸 수 없습니다."); }
+});
+
+/* =========================================================
+   10. 기기 간 동기화 (Supabase)
+   - 문서 하나 = doc_state 테이블의 한 줄 (마지막 쪽 + 책갈피)
+   - 규칙: 문서별로 '고친 시각(updated_at)'이 더 늦은 쪽이 이김
+   - PDF 파일 자체는 올리지 않음
+   ========================================================= */
+const Sync = (() => {
+  const cfg = window.PDFBOOK_CONFIG || {};
+  const ready = !!(cfg.supabaseUrl && cfg.supabaseKey && window.supabase);
+  let sb = null, user = null, lastSync = 0;
+  const pending = new Map();
+  let pushTimer = 0;
+  if (ready) {
+    try {
+      sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+      });
+    } catch (e) { sb = null; }
+  }
+
+  /* 서버에서 온 책갈피는 바깥 데이터이므로 모양을 다시 검사함 */
+  function cleanBookmarks(arr) {
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter((b) => b && Number.isInteger(b.page) && b.page >= 1 && b.page <= 100000)
+      .slice(0, 500)
+      .map((b) => ({ page: b.page, memo: typeof b.memo === "string" ? b.memo.slice(0, 80) : "", at: Number(b.at) || 0 }))
+      .sort((a, b) => a.page - b.page);
+  }
+  function toRow(m) {
+    return {
+      user_id: user.id,
+      doc_name: m.name,
+      last_page: Math.max(1, m.lastPage || 1),
+      bookmarks: (m.bookmarks || []).map((b) => ({ page: b.page, memo: b.memo || "", at: b.at || 0 })),
+      updated_at: new Date(m.updatedAt || Date.now()).toISOString()
+    };
+  }
+  /** 서버 줄 r을 이 기기의 문서 정보에 반영. 지금 열려 있는 문서면 화면도 갱신 */
+  async function applyRemote(r) {
+    const rt = Date.parse(r.updated_at) || 0;
+    const open = S.meta && S.meta.name === r.doc_name ? S.meta : null;
+    const m = open || await Store.get("meta", r.doc_name);
+    if (!m) {
+      await Store.put("meta", r.doc_name, {
+        name: r.doc_name, size: 0, pages: 0, lastPage: r.last_page, bookmarks: cleanBookmarks(r.bookmarks),
+        thumb: null, addedAt: Date.now(), openedAt: 0, hasFile: false, updatedAt: rt, syncedAt: rt
+      });
+      return "new";
+    }
+    const lt = m.updatedAt || 0;
+    if (rt > lt) {
+      m.lastPage = r.last_page; m.bookmarks = cleanBookmarks(r.bookmarks); m.updatedAt = rt; m.syncedAt = rt;
+      await Store.put("meta", m.name, m);
+      if (open) { renderBookmarks(); show(); toast("다른 기기의 책갈피를 받아 왔습니다."); }
+      return "pulled";
+    }
+    if (rt < lt) return "push";
+    return "same";
+  }
+  async function upsert(metas) {
+    if (!metas.length) return;
+    const rows = metas.map(toRow);
+    const { error } = await sb.from("doc_state").upsert(rows, { onConflict: "user_id,doc_name" });
+    if (error) throw error;
+    for (const r of rows) await markSynced(r.doc_name, Date.parse(r.updated_at));
+  }
+  /** "이 시각의 내용까지는 서버에 있다"고 적어 둠 → 서버에서 지워진 문서를 다시 올리지 않기 위해 */
+  async function markSynced(name, at) {
+    const m = S.meta && S.meta.name === name ? S.meta : await Store.get("meta", name);
+    if (!m) return;
+    m.syncedAt = Math.max(m.syncedAt || 0, at);
+    await Store.put("meta", name, m);
+  }
+
+  /** 전체 맞추기: 서버 → 기기, 기기에만 있거나 기기가 더 최신이면 기기 → 서버 */
+  async function pullAll() {
+    if (!user) return;
+    setMsg("");
+    try {
+      const { data, error } = await sb.from("doc_state").select("doc_name,last_page,bookmarks,updated_at");
+      if (error) throw error;
+      const remote = new Set();
+      const toPush = [];
+      for (const r of data) {
+        remote.add(r.doc_name);
+        if ((await applyRemote(r)) === "push") toPush.push(S.meta && S.meta.name === r.doc_name ? S.meta : await Store.get("meta", r.doc_name));
+      }
+      for (const m of await Store.allMeta()) {
+        // 서버에 없는 문서: 아직 한 번도 안 올렸거나 올린 뒤 고친 것만 올림.
+        // 올린 적이 있는데 서버에 없다면 다른 기기에서 지운 것이므로 되살리지 않음
+        const cur = S.meta && S.meta.name === m.name ? S.meta : m;
+        if (!remote.has(m.name) && cur.updatedAt && cur.updatedAt > (cur.syncedAt || 0)) toPush.push(cur);
+      }
+      await upsert(toPush);
+      lastSync = Date.now();
+      renderState();
+      if (!$("shelf").hidden) renderShelf();
+    } catch (e) { setMsg("동기화하지 못했습니다. 인터넷 연결을 확인한 뒤 '지금 동기화'를 눌러 주세요."); }
+  }
+  /** 문서를 열기 직전에 그 문서 한 줄만 확인 (최대 3초 기다림) */
+  async function pullOne(name) {
+    if (!user) return;
+    try {
+      const q = sb.from("doc_state").select("doc_name,last_page,bookmarks,updated_at").eq("doc_name", name).maybeSingle();
+      const res = await Promise.race([q, new Promise((ok) => setTimeout(() => ok({ timeout: true }), 3000))]);
+      if (res.timeout || res.error || !res.data) return;
+      if ((await applyRemote(res.data)) === "push") schedulePush(await Store.get("meta", name));
+    } catch (e) { /* 연결이 안 되면 이 기기 기록으로 그냥 엶 */ }
+  }
+  function schedulePush(m) {
+    if (!user || !m) return;
+    pending.set(m.name, m);
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(flush, 3000);       // 쪽을 넘길 때마다 보내지 않고 3초 모아서 한 번에
+  }
+  async function flush() {
+    clearTimeout(pushTimer);
+    if (!user || !pending.size) return;
+    const list = [...pending.values()];
+    pending.clear();
+    try { await upsert(list); lastSync = Date.now(); renderState(); }
+    catch (e) {
+      list.forEach((m) => { if (!pending.has(m.name)) pending.set(m.name, m); });
+      setMsg("책갈피를 서버에 올리지 못했습니다. 잠시 뒤 다시 시도합니다.");
+      pushTimer = setTimeout(flush, 30000);
+    }
+  }
+  async function remove(name) {
+    pending.delete(name);
+    if (!user) return;
+    try { const { error } = await sb.from("doc_state").delete().eq("doc_name", name); if (error) throw error; }
+    catch (e) { setMsg("동기화 기록에서는 지우지 못했습니다. 다른 기기에서 다시 보일 수 있습니다."); }
+  }
+
+  /* ---------- 화면 ---------- */
+  function setMsg(t, isErr = true) { const m = $("syncMsg"); m.textContent = t; m.className = isErr ? "err" : ""; }
+  function hm(t) { const d = new Date(t); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; }
+  function renderState() {
+    const st = $("syncState");
+    if (!ready || !sb) {
+      st.textContent = "꺼져 있음 — config.js에 Supabase 주소와 Publishable 키를 넣으면 켜집니다. 지금은 이 기기에만 저장됩니다.";
+      $("loginForm").hidden = true; $("syncActions").hidden = true; return;
+    }
+    if (!user) {
+      st.textContent = "로그인하면 휴대폰과 노트북의 책갈피·마지막 쪽이 맞춰집니다.";
+      $("loginForm").hidden = false; $("syncActions").hidden = true; return;
+    }
+    st.textContent = `켜져 있음 · ${user.email}` + (lastSync ? ` · 마지막 동기화 ${hm(lastSync)}` : "");
+    $("loginForm").hidden = true; $("syncActions").hidden = false;
+  }
+
+  /* 로그인 반복 실패 제한: 5번 틀리면 60초 쉬기 (서버도 따로 횟수를 제한함) */
+  let fails = 0, lockUntil = 0;
+  function locked() {
+    const left = Math.ceil((lockUntil - Date.now()) / 1000);
+    if (left > 0) { setMsg(`로그인을 여러 번 실패했습니다. ${left}초 뒤에 다시 시도해 주세요.`); return true; }
+    return false;
+  }
+  function readForm() {
+    const email = $("email").value.trim(), pw = $("pw").value;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setMsg("이메일 주소 형식이 맞지 않습니다. 예: name@example.com"); $("email").focus(); return null; }
+    if (pw.length < 8) { setMsg("비밀번호는 8자 이상으로 넣어 주세요."); $("pw").focus(); return null; }
+    return { email, pw };
+  }
+  function authError(e) {
+    const code = (e && (e.code || e.message || "")).toString();
+    if (/invalid_credentials|Invalid login/i.test(code)) return "이메일 또는 비밀번호가 맞지 않습니다.";
+    if (/email_not_confirmed|not confirmed/i.test(code)) return "메일함의 가입 확인 링크를 먼저 눌러 주세요.";
+    if (/signup_disabled|Signups not allowed/i.test(code)) return "새 가입이 막혀 있습니다. (Supabase에서 가입을 꺼 둔 상태)";
+    if (/rate|too many/i.test(code)) return "요청이 너무 잦습니다. 잠시 뒤 다시 시도해 주세요.";
+    if (/weak|password/i.test(code)) return "비밀번호가 너무 약합니다. 더 길고 섞인 비밀번호를 써 주세요.";
+    return "처리하지 못했습니다. 잠시 뒤 다시 시도해 주세요.";
+  }
+
+  function bind() {
+    if (!sb) { renderState(); return; }
+    $("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (locked()) return;
+      const f = readForm(); if (!f) return;
+      $("loginBtn").disabled = true; setMsg("");
+      try {
+        const { error } = await sb.auth.signInWithPassword({ email: f.email, password: f.pw });
+        if (error) throw error;
+        fails = 0; $("pw").value = "";
+      } catch (err) {
+        fails++;
+        if (fails >= 5) { lockUntil = Date.now() + 60000; fails = 0; }
+        setMsg(authError(err));
+      } finally { $("loginBtn").disabled = false; }
+    });
+    $("signupBtn").addEventListener("click", async () => {
+      const f = readForm(); if (!f) return;
+      $("signupBtn").disabled = true; setMsg("");
+      try {
+        const { error } = await sb.auth.signUp({
+          email: f.email, password: f.pw,
+          options: { emailRedirectTo: location.origin + location.pathname }
+        });
+        if (error) throw error;
+        $("pw").value = "";
+        setMsg("확인 메일을 보냈습니다. 메일의 링크를 누르면 이 화면으로 돌아와 로그인됩니다.", false);
+      } catch (err) { setMsg(authError(err)); }
+      finally { $("signupBtn").disabled = false; }
+    });
+    $("syncNow").addEventListener("click", async () => { await flush(); await pullAll(); if (!$("syncMsg").textContent) toast("동기화했습니다."); });
+    $("logoutBtn").addEventListener("click", async () => {
+      await flush();
+      try { await sb.auth.signOut(); } catch (e) {}
+      setMsg("로그아웃했습니다. 이 기기의 서재는 그대로 남습니다.", false);
+    });
+    // 로그인 상태가 바뀔 때 (로그인, 로그아웃, 확인 메일 링크로 돌아왔을 때)
+    sb.auth.onAuthStateChange((event, session) => {
+      const was = user;
+      user = session ? session.user : null;
+      renderState();
+      if (user && !was) setTimeout(pullAll, 0);   // 콜백 안에서 바로 DB를 부르지 않고 한 박자 뒤에
+    });
+    // 앱을 떠날 때는 모아 둔 것을 바로 보내고, 돌아오면 다시 맞춤
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flush();
+      else if (user && Date.now() - lastSync > 60000) pullAll();
+    });
+    renderState();
+  }
+
+  return { bind, pullAll, pullOne, schedulePush, flush, remove };
+})();
+
+/* =========================================================
+   11. 시작
+   ========================================================= */
+(async () => {
+  if (pdfjs) pdfjs.GlobalWorkerOptions.workerSrc = BASE + "lib/pdf.worker.min.js";
+  else toast("PDF 보기 모듈을 불러오지 못했습니다.");
+  const ok = await Store.open();
+  if (!ok) {
+    const n = $("storeNote");
+    n.textContent = "이 브라우저에서는 문서를 보관할 수 없어, 창을 닫으면 서재가 비워집니다. 책갈피도 이번에만 유지됩니다.";
+    n.hidden = false;
+  }
+  renderShelf();
+  Sync.bind();
+})();
+})();
+</script>
+</body>
+</html>
