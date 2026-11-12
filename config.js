@@ -6,6 +6,6 @@
 // 둘 다 비워 두면 동기화 없이 이 기기에서만 동작한다.
 // =====================================================================
 window.PDFBOOK_CONFIG = {
-  supabaseUrl: "",
-  supabaseKey: ""
+  supabaseUrl: "https://lpearozosxczjvnztxcy.supabase.co",
+  supabaseKey: "sb_publishable_6VKKa90eyJJAo4fB7Mbz_Q__6AFZ0QQ"
 };
