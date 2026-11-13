@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 문서 서재 아이콘: 갈색 바탕 위 책장 한 칸과 책들 -->
+  <rect width="64" height="64" rx="14" fill="#7a3e1d"/>
+  <!-- 책장 틀 -->
+  <rect x="9" y="9" width="46" height="46" rx="3" fill="#f6f4ef"/>
+  <rect x="9" y="31" width="46" height="4" fill="#7a3e1d"/>
+  <!-- 위 칸 책 -->
+  <rect x="14" y="13" width="6" height="18" rx="1" fill="#c0392b"/>
+  <rect x="21" y="15" width="5" height="16" rx="1" fill="#2e6f8e"/>
+  <rect x="27" y="12" width="6" height="19" rx="1" fill="#d9a441"/>
+  <rect x="35" y="17" width="5" height="18" rx="1" fill="#4f7d4a" transform="rotate(-18 37.5 31)"/>
+  <!-- 아래 칸 책 -->
+  <rect x="14" y="38" width="5" height="15" rx="1" fill="#2e6f8e"/>
+  <rect x="20" y="40" width="6" height="13" rx="1" fill="#d9a441"/>
+  <rect x="27" y="37" width="5" height="16" rx="1" fill="#c0392b"/>
+  <rect x="33" y="39" width="6" height="14" rx="1" fill="#4f7d4a"/>
+  <!-- 펼친 책 (오른쪽 아래) -->
+  <path d="M41 46 l6 -2 l6 2 v7 l-6 -2 l-6 2 z" fill="#ffffff" stroke="#7a3e1d" stroke-width="1.2" stroke-linejoin="round"/>
+  <path d="M47 44 v7" stroke="#7a3e1d" stroke-width="1.2"/>
+</svg>
