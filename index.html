@@ -41,25 +41,38 @@ button{cursor:pointer}
 .bar h1{font-size:18px;margin:0;font-weight:700}
 
 /* ---------- 서재 ---------- */
-#shelf{min-height:100%}
-.shelf-main{max-width:880px;margin:0 auto;padding:20px 16px 48px}
-.drop{border:2px dashed var(--line);border-radius:16px;padding:24px 18px;text-align:center;background:var(--card)}
-.drop.over{border-color:var(--accent)}
-.drop p{margin:0 0 14px;color:var(--muted)}
-.drop .hint{margin:12px 0 0;font-size:15px}
-.note{margin:14px 0 0;padding:10px 14px;border-radius:10px;background:var(--card);border-left:4px solid var(--accent);font-size:15px}
-.shelf-main h2{font-size:17px;margin:28px 0 10px}
+#shelf{min-height:100%;position:relative}
+.shelf-bar{position:sticky;top:0;z-index:3;flex-wrap:wrap}
+.shelf-bar .grow{flex:1}
+.shelf-main{max-width:880px;margin:0 auto;padding:12px 16px 48px}
+.hint-line{margin:4px 0 10px;font-size:14px;color:var(--muted)}
+.note{margin:10px 0 0;padding:10px 14px;border-radius:10px;background:var(--card);border-left:4px solid var(--accent);font-size:15px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:thin}
+.chip{flex:none;min-height:44px;padding:0 14px;border-radius:22px;border:1px solid var(--line);background:var(--card);white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
+.chip.add{border-style:dashed;color:var(--muted)}
+.shelf-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
+.shelf-tools h2{flex:1;margin:0;font-size:17px;min-width:8em}
+.shelf-tools select,.doc-move select,.inline-form input{min-height:44px;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:0 8px}
+.inline-form{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin:0 0 12px;padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:12px}
+.inline-form .field{display:flex;flex-direction:column;flex:1 1 180px}
+.inline-form label{font-size:14px;color:var(--muted)}
+.empty{color:var(--muted)}
 .doc-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
-.doc-item{display:flex;align-items:stretch;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px}
-.doc-open{flex:1;display:flex;gap:12px;align-items:center;text-align:left;background:none;border:0;padding:4px;border-radius:8px;min-height:44px}
+.doc-item{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px}
+.doc-open{flex:1 1 240px;display:flex;gap:12px;align-items:center;text-align:left;background:none;border:0;padding:4px;border-radius:8px;min-height:44px}
 .doc-open img,.doc-open .noimg{width:54px;height:72px;object-fit:cover;border-radius:4px;border:1px solid var(--line);background:#fff;flex:none}
 .doc-name{font-weight:600;word-break:break-all}
 .doc-meta{font-size:14px;color:var(--muted)}
-.doc-del{align-self:center}
+.doc-side{display:flex;align-items:center;gap:6px;margin-left:auto}
+.doc-move{display:flex;align-items:center;gap:4px;font-size:14px;color:var(--muted)}
+#dropOverlay{position:fixed;inset:10px;z-index:30;border:3px dashed var(--accent);border-radius:18px;
+  background:color-mix(in srgb,var(--bg) 88%,transparent);display:flex;align-items:center;justify-content:center;
+  font-size:20px;font-weight:700;color:var(--accent);pointer-events:none;text-align:center;padding:20px}
+details.sync > summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:.4em;font-weight:600}
 
 /* ---------- 동기화 상자 ---------- */
-.sync{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
-.sync h2{margin:0 0 6px !important;font-size:16px !important}
+.sync{margin-top:24px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
 .sync p{margin:4px 0}
 .sync .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:flex-end}
 .sync .field{display:flex;flex-direction:column;flex:1 1 200px}
@@ -68,6 +81,13 @@ button{cursor:pointer}
 .sync .err{color:#b3261e}
 @media (prefers-color-scheme: dark){ .sync .err{color:#ffb4ab} }
 .doc-meta.nofile{color:var(--accent)}
+
+/* ---------- 책갈피 고르기 (양쪽 보기) ---------- */
+#markMenu{position:fixed;z-index:25;background:var(--bg);border:1px solid var(--line);border-radius:12px;
+  box-shadow:var(--shadow);padding:8px;display:flex;flex-direction:column;gap:6px;min-width:190px}
+#markMenu p{margin:2px 6px 4px;font-size:14px;color:var(--muted)}
+#markMenu .btn{justify-content:flex-start}
+.temp-tag{font-size:13px;font-weight:600;color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:0 6px;margin-left:6px;white-space:nowrap}
 
 /* ---------- 읽기 화면 ---------- */
 #reader{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--stage)}
@@ -178,17 +198,43 @@ kbd{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:4px;p
 
 <!-- ================= 서재 ================= -->
 <section id="shelf" aria-labelledby="shelfTitle">
-  <header class="bar"><h1 id="shelfTitle">문서 서재</h1></header>
+  <header class="bar shelf-bar">
+    <h1 id="shelfTitle">문서 서재</h1>
+    <span class="grow"></span>
+    <button type="button" class="btn primary" id="addBtn">＋ 서재에 넣기</button>
+    <button type="button" class="btn" id="quickBtn">바로 읽기</button>
+    <input type="file" id="fileInput" accept="application/pdf,.pdf" multiple class="sr-only" tabindex="-1" aria-hidden="true">
+    <input type="file" id="quickInput" accept="application/pdf,.pdf" class="sr-only" tabindex="-1" aria-hidden="true">
+  </header>
   <main class="shelf-main">
-    <div class="drop" id="drop">
-      <p>PDF를 이 기기에서 바로 엽니다. PDF 파일은 어디로도 올라가지 않고 이 브라우저 안에만 보관됩니다. (동기화를 켜면 책갈피와 읽던 쪽만 서버에 저장됩니다.)</p>
-      <button type="button" class="btn primary" id="openBtn">PDF 열기</button>
-      <input type="file" id="fileInput" accept="application/pdf,.pdf" multiple class="sr-only" tabindex="-1" aria-hidden="true">
-      <p class="hint">노트북에서는 파일을 여기에 끌어다 놓아도 됩니다. 같은 이름의 파일을 다시 열면 새 판으로 바뀌고 책갈피는 그대로 남습니다.</p>
-    </div>
+    <p class="hint-line">PDF를 이 화면에 끌어다 놓으면 지금 고른 책장에 들어갑니다. 「바로 읽기」는 서재에 넣지 않고 이번 한 번만 봅니다(아무것도 저장하지 않음).</p>
     <p id="storeNote" class="note" hidden></p>
-    <section class="sync" id="syncBox" aria-labelledby="syncTitle">
-      <h2 id="syncTitle">기기 간 동기화</h2>
+    <nav aria-label="책장">
+      <div id="shelfTabs" class="chips"></div>
+    </nav>
+    <form id="shelfForm" class="inline-form" hidden novalidate>
+      <div class="field">
+        <label for="shelfName" id="shelfFormLabel">새 책장 이름</label>
+        <input id="shelfName" type="text" maxlength="40" autocomplete="off" required>
+      </div>
+      <button type="submit" class="btn primary" id="shelfFormOk">만들기</button>
+      <button type="button" class="btn" id="shelfFormCancel">취소</button>
+    </form>
+    <div class="shelf-tools">
+      <h2 id="listTitle">전체</h2>
+      <label for="sortSel" class="sr-only">정렬 방법</label>
+      <select id="sortSel">
+        <option value="added">최근 넣은 순</option>
+        <option value="name">가나다순</option>
+      </select>
+      <button type="button" class="btn" id="renameShelfBtn" hidden>이름 바꾸기</button>
+      <button type="button" class="btn" id="dropShelfBtn" hidden>책장 없애기</button>
+    </div>
+    <p id="emptyShelf" class="empty" hidden></p>
+    <ul id="docList" class="doc-list" aria-labelledby="listTitle"></ul>
+
+    <details class="sync" id="syncBox">
+      <summary>기기 간 동기화 <span aria-hidden="true">·</span> <span id="syncSummary">확인 중</span></summary>
       <p id="syncState">확인 중…</p>
       <form id="loginForm" hidden novalidate>
         <div class="row">
@@ -205,11 +251,10 @@ kbd{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:4px;p
         <button type="button" class="btn" id="logoutBtn">로그아웃</button>
       </div>
       <p id="syncMsg" role="alert"></p>
-    </section>
-    <h2 id="recentTitle">최근 문서</h2>
-    <p id="emptyShelf" class="empty">아직 연 문서가 없습니다.</p>
-    <ul id="docList" class="doc-list" aria-labelledby="recentTitle"></ul>
+      <p class="help">PDF 파일은 올라가지 않고, 책장 이름·읽던 쪽·책갈피만 서버에 저장됩니다.</p>
+    </details>
   </main>
+  <div id="dropOverlay" hidden aria-hidden="true"></div>
 </section>
 
 <!-- ================= 읽기 화면 ================= -->
@@ -217,12 +262,13 @@ kbd{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:4px;p
   <header class="bar reader-bar">
     <button type="button" class="btn ghost" id="backBtn">‹ 서재</button>
     <button type="button" class="btn ghost side-only" id="sideHide" aria-label="옆줄 숨기기 (S 키)" title="옆줄 숨기기 (S)">◀ 숨기기</button>
-    <h1 id="docTitle" class="doc-title"></h1>
+    <h1 class="doc-title"><span id="docTitle"></span><span class="temp-tag" id="tempTag" hidden>서재 밖</span></h1>
+    <button type="button" class="btn" id="keepBtn" hidden>서재에 넣기</button>
     <button type="button" class="btn wide-only" id="modeBtnTop"></button>
     <button type="button" class="btn wide-only" id="zoomOutTop" aria-label="축소">−</button>
     <button type="button" class="btn wide-only" id="zoomInTop" aria-label="확대">+</button>
     <button type="button" class="btn" id="fitBtn" aria-pressed="false" title="폭 맞춤 (W)">폭 맞춤</button>
-    <button type="button" class="btn" id="markBtn" aria-pressed="false">☆<span class="sr-only">이 쪽 책갈피</span></button>
+    <button type="button" class="btn" id="markBtn" aria-pressed="false" aria-haspopup="true" aria-controls="markMenu" aria-expanded="false">☆<span class="sr-only">이 쪽 책갈피</span></button>
     <button type="button" class="btn" id="panelBtn" aria-expanded="false" aria-controls="panel">목차</button>
   </header>
 
@@ -291,7 +337,7 @@ kbd{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:4px;p
         </div>
         <div class="set">
           <h3>단축키 (노트북)</h3>
-          <p class="help"><kbd>←</kbd> <kbd>→</kbd> 쪽 넘김 · <kbd>Home</kbd> <kbd>End</kbd> 처음·끝 · <kbd>B</kbd> 책갈피 · <kbd>T</kbd> 목차 · <kbd>/</kbd> 찾기 · <kbd>S</kbd> 옆줄 숨기기·보이기 · <kbd>W</kbd> 폭 맞춤 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>Esc</kbd> 패널 닫기</p>
+          <p class="help"><kbd>←</kbd> <kbd>→</kbd> 쪽 넘김 · <kbd>↑</kbd> <kbd>↓</kbd> 폭 맞춤·확대 때 위아래 스크롤 · <kbd>Home</kbd> <kbd>End</kbd> 처음·끝 · <kbd>B</kbd> 책갈피 · <kbd>T</kbd> 목차 · <kbd>/</kbd> 찾기 · <kbd>S</kbd> 옆줄 숨기기·보이기 · <kbd>W</kbd> 폭 맞춤 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>Esc</kbd> 패널 닫기</p>
           <p class="help">휴대폰: 화면 왼쪽·오른쪽을 누르거나 옆으로 밀어 넘깁니다.</p>
         </div>
       </div>
@@ -299,6 +345,10 @@ kbd{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:4px;p
   </aside>
 </section>
 
+<div id="markMenu" role="group" aria-labelledby="markMenuTitle" hidden>
+  <p id="markMenuTitle">책갈피를 꽂을 쪽</p>
+  <div id="markMenuBtns" style="display:flex;flex-direction:column;gap:6px"></div>
+</div>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 <div id="live" class="sr-only" aria-live="polite"></div>
 
@@ -396,75 +446,252 @@ function fmtDate(t) {
   return `${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+/* ---------- 책장 ----------
+   책장은 따로 표를 두지 않고, 문서마다 '어느 책장에 있나(shelf)'만 적어 둠.
+   빈 책장은 이 기기에만 기억(Prefs)하고, 문서가 들어가면 동기화로 다른 기기에도 생김 */
+const NO_SHELF = "";                          // 분류 없음
+const ALL = "*";                              // 전체 보기
+let curShelf = Prefs.get("curShelf", ALL);
+let sortBy = Prefs.get("sort", "added");      // added | name
+const koSort = (a, b) => a.localeCompare(b, "ko", { numeric: true, sensitivity: "base" });
+
+function cleanShelf(v) {
+  if (typeof v !== "string") return NO_SHELF;
+  return v.replace(/\s+/g, " ").trim().slice(0, 40);
+}
+function shelfNames(metas) {
+  const set = new Set(Prefs.get("shelves", []).map(cleanShelf).filter(Boolean));
+  metas.forEach((m) => { if (m.shelf) set.add(m.shelf); });
+  return [...set].sort(koSort);
+}
+function rememberShelf(name) {
+  const list = Prefs.get("shelves", []);
+  if (!list.includes(name)) { list.push(name); Prefs.set("shelves", list); }
+}
+function forgetShelf(name) { Prefs.set("shelves", Prefs.get("shelves", []).filter((x) => x !== name)); }
+function setCurShelf(v) { curShelf = v; Prefs.set("curShelf", v); renderShelf(); }
+/** 새로 넣는 문서가 들어갈 책장: 전체를 보고 있으면 분류 없음 */
+function targetShelf() { return curShelf === ALL ? NO_SHELF : curShelf; }
+function shelfLabel(v) { return v === ALL ? "전체" : v === NO_SHELF ? "분류 없음" : v; }
+
+/** 문서 정보를 고치고 동기화 예약 (열려 있지 않은 문서용) */
+async function updateMeta(name, fn) {
+  const m = S.meta && !S.meta.temp && S.meta.name === name ? S.meta : await Store.get("meta", name);
+  if (!m) return;
+  fn(m);
+  m.updatedAt = Date.now();
+  await Store.put("meta", name, m);
+  Sync.schedulePush(m);
+}
+
 async function renderShelf() {
   thumbURLs.splice(0).forEach((u) => URL.revokeObjectURL(u));
-  const list = (await Store.allMeta()).sort((a, b) => (b.openedAt || 0) - (a.openedAt || 0));
+  const all = await Store.allMeta();
+  all.forEach((m) => { m.shelf = cleanShelf(m.shelf); });
+  const names = shelfNames(all);
+  if (curShelf !== ALL && curShelf !== NO_SHELF && !names.includes(curShelf)) curShelf = ALL;
+
+  // 책장 단추 줄
+  const count = (v) => all.filter((m) => v === ALL || m.shelf === v).length;
+  const chips = [ALL, ...names];
+  if (names.length && all.some((m) => !m.shelf)) chips.push(NO_SHELF);
+  $("shelfTabs").replaceChildren(
+    ...chips.map((v) => el("button", {
+      type: "button", class: "chip", "aria-pressed": String(curShelf === v),
+      text: `${shelfLabel(v)} ${count(v)}`, onclick: () => setCurShelf(v)
+    })),
+    el("button", { type: "button", class: "chip add", text: "＋ 새 책장", onclick: () => openShelfForm("new") })
+  );
+  const own = curShelf !== ALL && curShelf !== NO_SHELF;
+  $("renameShelfBtn").hidden = !own;
+  $("dropShelfBtn").hidden = !own;
+  $("listTitle").textContent = shelfLabel(curShelf);
+  $("sortSel").value = sortBy;
+
+  // 문서 목록
+  const list = all.filter((m) => curShelf === ALL || m.shelf === curShelf);
+  if (sortBy === "name") list.sort((a, b) => koSort(a.name, b.name));
+  else list.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
   const ul = $("docList");
   ul.replaceChildren();
-  $("emptyShelf").hidden = list.length > 0;
-  for (const m of list) {
-    let img;
-    if (m.thumb) {
-      const u = URL.createObjectURL(m.thumb); thumbURLs.push(u);
-      img = el("img", { src: u, alt: "" });
-    } else img = el("span", { class: "noimg", "aria-hidden": "true" });
-    const bmN = (m.bookmarks || []).length;
-    const del = el("button", { type: "button", class: "btn doc-del", text: "삭제", "aria-label": `${m.name} 삭제` });
-    let armed = 0;
-    del.addEventListener("click", async () => {
-      if (!armed) {
-        del.textContent = "정말 삭제"; armed = setTimeout(() => { del.textContent = "삭제"; armed = 0; }, 3000);
-        return;
-      }
-      clearTimeout(armed);
-      await Store.del(m.name);
-      Sync.remove(m.name);                     // 동기화 기록에서도 지움 (안 그러면 다음 동기화 때 되살아남)
-      toast("삭제했습니다.");
-      renderShelf();
-    });
-    ul.append(el("li", { class: "doc-item" }, [
-      el("button", { type: "button", class: "doc-open", onclick: () => openStored(m.name) }, [
-        img,
-        el("span", {}, [
-          el("span", { class: "doc-name", text: m.name }),
-          el("br"),
-          m.hasFile === false
-            ? el("span", { class: "doc-meta nofile", text: `이 기기에는 PDF가 없습니다 · 눌러서 같은 이름의 파일 넣기 · 책갈피 ${bmN}개 · ${m.lastPage || 1}쪽까지 읽음` })
-            : el("span", { class: "doc-meta", text: `${m.lastPage || 1} / ${m.pages || "?"}쪽 · 책갈피 ${bmN}개 · ${fmtDate(m.openedAt)}` })
-        ])
-      ]),
-      del
-    ]));
-  }
+  const empty = $("emptyShelf");
+  empty.hidden = list.length > 0;
+  empty.textContent = all.length ? "이 책장은 비어 있습니다. PDF를 끌어다 놓거나 「서재에 넣기」를 누르세요."
+                                 : "아직 넣은 문서가 없습니다. 「서재에 넣기」를 누르거나 PDF를 이 화면에 끌어다 놓으세요.";
+  list.forEach((m, i) => ul.append(docItem(m, names, i)));
 }
+
+function docItem(m, names, i) {
+  let img;
+  if (m.thumb) {
+    const u = URL.createObjectURL(m.thumb); thumbURLs.push(u);
+    img = el("img", { src: u, alt: "" });
+  } else img = el("span", { class: "noimg", "aria-hidden": "true" });
+  const bmN = (m.bookmarks || []).length;
+
+  // 책장 옮기기
+  const selId = "mv-" + i;
+  const sel = el("select", { id: selId },
+    [el("option", { value: NO_SHELF, text: "분류 없음" }), ...names.map((n) => el("option", { value: n, text: n }))]);
+  sel.value = m.shelf || NO_SHELF;
+  sel.addEventListener("change", async () => {
+    await updateMeta(m.name, (x) => { x.shelf = sel.value; });
+    toast(`'${m.name}'을(를) ${shelfLabel(sel.value)}(으)로 옮겼습니다.`);
+    renderShelf();
+  });
+
+  // 삭제: 두 번 눌러야 지움. 파일·읽던 쪽·책갈피·서버 기록까지 모두
+  const del = el("button", { type: "button", class: "btn", text: "삭제", "aria-label": `${m.name} 삭제` });
+  let armed = 0;
+  del.addEventListener("click", async () => {
+    if (!armed) {
+      del.textContent = "정말 삭제?";
+      del.setAttribute("aria-label", `${m.name}, 책갈피와 읽던 쪽까지 지웁니다. 한 번 더 누르면 삭제`);
+      armed = setTimeout(() => { del.textContent = "삭제"; del.setAttribute("aria-label", `${m.name} 삭제`); armed = 0; }, 4000);
+      return;
+    }
+    clearTimeout(armed);
+    await removeDoc(m.name);
+    toast("삭제했습니다. 책갈피와 읽던 쪽도 함께 지웠습니다.");
+    renderShelf();
+  });
+
+  return el("li", { class: "doc-item" }, [
+    el("button", { type: "button", class: "doc-open", onclick: () => openStored(m.name) }, [
+      img,
+      el("span", {}, [
+        el("span", { class: "doc-name", text: m.name }),
+        el("br"),
+        m.hasFile === false
+          ? el("span", { class: "doc-meta nofile", text: `이 기기에는 PDF가 없습니다 · 눌러서 같은 이름의 파일 넣기 · 책갈피 ${bmN}개` })
+          : el("span", { class: "doc-meta", text: `${m.lastPage || 1} / ${m.pages || "?"}쪽 · 책갈피 ${bmN}개 · 넣은 날 ${fmtDate(m.addedAt)}` })
+      ])
+    ]),
+    el("div", { class: "doc-side" }, [
+      el("span", { class: "doc-move" }, [el("label", { for: selId, text: "책장" }), sel]),
+      del
+    ])
+  ]);
+}
+
+/** 서재에서 지우기: PDF 파일, 읽던 쪽, 책갈피, 자동 목차, 서버 기록까지 */
+async function removeDoc(name) {
+  await Store.del(name);
+  Sync.remove(name);
+}
+
+/* 책장 만들기·이름 바꾸기 (같은 입력 칸을 같이 씀) */
+let shelfFormMode = "new";
+function openShelfForm(mode) {
+  shelfFormMode = mode;
+  $("shelfFormLabel").textContent = mode === "new" ? "새 책장 이름" : `'${curShelf}' 책장의 새 이름`;
+  $("shelfFormOk").textContent = mode === "new" ? "만들기" : "바꾸기";
+  $("shelfName").value = mode === "new" ? "" : curShelf;
+  $("shelfForm").hidden = false;
+  $("shelfName").focus();
+}
+$("shelfFormCancel").addEventListener("click", () => { $("shelfForm").hidden = true; });
+$("shelfForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = cleanShelf($("shelfName").value);
+  if (!name) { toast("책장 이름을 넣어 주세요."); $("shelfName").focus(); return; }
+  if (name === "*") { toast("그 이름은 쓸 수 없습니다."); return; }
+  if (shelfFormMode === "new") {
+    rememberShelf(name);
+    $("shelfForm").hidden = true;
+    setCurShelf(name);
+    toast(`'${name}' 책장을 만들었습니다. 이제 넣는 PDF는 이 책장에 들어갑니다.`);
+    return;
+  }
+  const old = curShelf;
+  if (name === old) { $("shelfForm").hidden = true; return; }
+  for (const m of await Store.allMeta()) if (cleanShelf(m.shelf) === old) await updateMeta(m.name, (x) => { x.shelf = name; });
+  forgetShelf(old); rememberShelf(name);
+  $("shelfForm").hidden = true;
+  setCurShelf(name);
+  toast(`책장 이름을 '${name}'(으)로 바꿨습니다.`);
+});
+$("renameShelfBtn").addEventListener("click", () => openShelfForm("rename"));
+let dropArmed = 0;
+$("dropShelfBtn").addEventListener("click", async () => {
+  const b = $("dropShelfBtn");
+  if (!dropArmed) {
+    b.textContent = "정말 없애기?";
+    dropArmed = setTimeout(() => { b.textContent = "책장 없애기"; dropArmed = 0; }, 4000);
+    return;
+  }
+  clearTimeout(dropArmed); dropArmed = 0; b.textContent = "책장 없애기";
+  const old = curShelf;
+  for (const m of await Store.allMeta()) if (cleanShelf(m.shelf) === old) await updateMeta(m.name, (x) => { x.shelf = NO_SHELF; });
+  forgetShelf(old);
+  setCurShelf(ALL);
+  toast(`'${old}' 책장을 없앴습니다. 들어 있던 문서는 '분류 없음'으로 옮겼습니다.`);
+});
+$("sortSel").addEventListener("change", (e) => { sortBy = e.target.value; Prefs.set("sort", sortBy); renderShelf(); });
 
 function isPdf(f) { return f && (f.type === "application/pdf" || /\.pdf$/i.test(f.name)); }
 
-async function addFiles(files) {
-  const pdfs = [...files].filter(isPdf);
-  if (!pdfs.length) { toast("PDF 파일만 열 수 있습니다."); return; }
-  if (pdfs.length < files.length) toast("PDF가 아닌 파일은 건너뛰었습니다.");
-  for (const f of pdfs) {
-    const prev = await Store.get("meta", f.name);
-    await Store.put("files", f.name, f);
-    await Store.put("meta", f.name, {
-      name: f.name, size: f.size, pages: prev ? prev.pages : 0,
-      lastPage: prev ? prev.lastPage : 1, bookmarks: prev ? prev.bookmarks : [],
-      thumb: null, addedAt: Date.now(), openedAt: Date.now(),
-      hasFile: true, updatedAt: prev ? prev.updatedAt || 0 : 0
-    });
-    if (prev) toast(`'${f.name}' 새 판으로 바꿨습니다. 책갈피는 남아 있습니다.`);
-  }
-  if (pdfs.length === 1) openStored(pdfs[0].name);
-  else { renderShelf(); toast(`${pdfs.length}개 문서를 서재에 넣었습니다.`); }
+/** 쪽 수와 첫 쪽 그림만 미리 만들어 둠 (서재 목록에 보이도록) */
+async function probePdf(file) {
+  let pdf = null;
+  try {
+    pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()), useSystemFonts: true, isEvalSupported: false }).promise;
+    return { pages: pdf.numPages, thumb: await makeThumb(pdf) };
+  } catch (e) { return null; }
+  finally { if (pdf) pdf.destroy(); }
 }
 
-$("openBtn").addEventListener("click", () => $("fileInput").click());
+/** 서재에 넣기만 함 (열지 않음) */
+async function addFiles(files, shelf = targetShelf()) {
+  const pdfs = [...files].filter(isPdf);
+  if (!pdfs.length) { toast("PDF 파일만 넣을 수 있습니다."); return; }
+  if (pdfs.length < files.length) toast("PDF가 아닌 파일은 건너뛰었습니다.");
+  let added = 0, replaced = 0;
+  for (const f of pdfs) {
+    toast(`넣는 중… ${f.name}`);
+    const info = pdfjs ? await probePdf(f) : null;
+    if (!info) { toast(`'${f.name}'은(는) 열 수 없는 PDF라 넣지 않았습니다.`); continue; }
+    const prev = await Store.get("meta", f.name);
+    await Store.put("files", f.name, f);
+    const m = {
+      name: f.name, size: f.size, pages: info.pages, thumb: info.thumb,
+      lastPage: prev ? Math.min(prev.lastPage || 1, info.pages) : 1,
+      bookmarks: prev ? (prev.bookmarks || []).filter((b) => b.page <= info.pages) : [],
+      shelf: prev && prev.shelf ? prev.shelf : shelf,
+      addedAt: Date.now(), openedAt: prev ? prev.openedAt || 0 : 0, hasFile: true,
+      updatedAt: Date.now(), syncedAt: prev ? prev.syncedAt || 0 : 0
+    };
+    await Store.put("meta", f.name, m);
+    Sync.schedulePush(m);
+    prev ? replaced++ : added++;
+  }
+  renderShelf();
+  if (added + replaced) toast([added && `${added}개를 '${shelfLabel(shelf)}'에 넣었습니다.`, replaced && `${replaced}개는 새 판으로 바꿨습니다(책갈피 유지).`].filter(Boolean).join(" "));
+}
+
+$("addBtn").addEventListener("click", () => $("fileInput").click());
 $("fileInput").addEventListener("change", (e) => { if (e.target.files.length) addFiles(e.target.files); e.target.value = ""; });
-const drop = $("drop");
-["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
-["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
-drop.addEventListener("drop", (e) => { if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+$("quickBtn").addEventListener("click", () => $("quickInput").click());
+$("quickInput").addEventListener("change", (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) openTemp(f); });
+
+// 서재 화면 어디든 끌어다 놓기 → 지금 책장에 넣기만
+let dragDepth = 0;
+const shelfEl = $("shelf"), overlay = $("dropOverlay");
+shelfEl.addEventListener("dragenter", (e) => {
+  if (!e.dataTransfer || ![...e.dataTransfer.types].includes("Files")) return;
+  e.preventDefault(); dragDepth++;
+  overlay.textContent = `여기에 놓으면 '${shelfLabel(targetShelf())}'에 넣습니다`;
+  overlay.hidden = false;
+});
+shelfEl.addEventListener("dragover", (e) => { if (!overlay.hidden) e.preventDefault(); });
+shelfEl.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; overlay.hidden = true; } });
+shelfEl.addEventListener("drop", (e) => {
+  e.preventDefault(); dragDepth = 0; overlay.hidden = true;
+  if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+});
+// 읽기 화면에 잘못 떨어뜨려도 브라우저가 PDF를 열어 버리지 않게
+window.addEventListener("dragover", (e) => e.preventDefault());
+window.addEventListener("drop", (e) => e.preventDefault());
 
 /* =========================================================
    3. 읽기 상태
@@ -512,6 +739,17 @@ async function openStored(name) {
   await Sync.pullOne(name);                   // 다른 기기에서 더 읽었으면 그 쪽부터 열리도록
   const meta = await Store.get("meta", name);
   if (!meta) { toast("저장된 문서 정보를 찾지 못했습니다. 다시 열어 주세요."); renderShelf(); return; }
+  await openPdf(file, meta);
+}
+
+/** 서재 밖 PDF: 기기에 아무것도 저장하지 않고 이번에만 봄 (책갈피도 창을 닫으면 사라짐) */
+async function openTemp(file) {
+  if (!isPdf(file)) { toast("PDF 파일만 열 수 있습니다."); return; }
+  if (!pdfjs) { toast("PDF 보기 모듈을 불러오지 못했습니다."); return; }
+  await openPdf(file, { name: file.name, size: file.size, lastPage: 1, bookmarks: [], temp: true });
+}
+
+async function openPdf(file, meta) {
   try {
     const data = new Uint8Array(await file.arrayBuffer());
     const pdf = await pdfjs.getDocument({
@@ -520,15 +758,17 @@ async function openStored(name) {
       isEvalSupported: false            // PDF 안의 글꼴 코드를 eval로 실행하지 않음 (보안)
     }).promise;
     if (S.pdf) S.pdf.destroy();
-    S.pdf = pdf; S.n = pdf.numPages; S.meta = meta;
+    S.pdf = pdf; S.n = pdf.numPages; S.meta = meta; S.file = meta.temp ? file : null;
     S.sizes.clear(); S.cache.clear(); S.lines.clear(); S.doc++; S.tocOffset = 0; S.zoom = 1;
     $("findList").replaceChildren(); $("findStatus").textContent = "";
-    meta.pages = S.n; meta.openedAt = Date.now();
+    meta.pages = S.n;
     meta.bookmarks = (meta.bookmarks || []).filter((b) => b.page <= S.n);
-    if (!meta.thumb) meta.thumb = await makeThumb();
-    await Store.put("meta", name, meta);
-
-    $("docTitle").textContent = name.replace(/\.pdf$/i, "");
+    if (!meta.temp) {
+      meta.openedAt = Date.now();
+      if (!meta.thumb) meta.thumb = await makeThumb(pdf);
+      await Store.put("meta", meta.name, meta);
+    }
+    showTempState();
     document.title = $("docTitle").textContent + " — 문서 서재";
     $("slider").max = S.n; $("pageTotal").textContent = "/ " + S.n;
     $("shelf").hidden = true; $("reader").hidden = false;
@@ -547,9 +787,42 @@ async function openStored(name) {
   }
 }
 
-async function makeThumb() {
+function showTempState() {
+  const t = !!(S.meta && S.meta.temp);
+  $("docTitle").textContent = S.meta.name.replace(/\.pdf$/i, "");
+  $("tempTag").hidden = !t;
+  $("keepBtn").hidden = !t;
+}
+
+/** 서재 밖에서 보던 PDF를 서재에 넣기: 지금까지의 읽던 쪽·책갈피도 같이 */
+$("keepBtn").addEventListener("click", async () => {
+  if (!S.meta || !S.meta.temp || !S.file) return;
+  const prev = await Store.get("meta", S.meta.name);
+  if (prev && !confirmReplace) {
+    confirmReplace = true;
+    toast("같은 이름의 문서가 서재에 있습니다. 한 번 더 누르면 새 판으로 바꿉니다(서재 쪽 책갈피는 지금 것으로 바뀜).");
+    setTimeout(() => { confirmReplace = false; }, 5000);
+    return;
+  }
+  confirmReplace = false;
+  await Store.put("files", S.meta.name, S.file);
+  const m = {
+    name: S.meta.name, size: S.file.size, pages: S.n, thumb: await makeThumb(S.pdf),
+    lastPage: S.cur, bookmarks: S.meta.bookmarks || [], shelf: prev && prev.shelf ? prev.shelf : targetShelf(),
+    addedAt: Date.now(), openedAt: Date.now(), hasFile: true, updatedAt: Date.now(), syncedAt: prev ? prev.syncedAt || 0 : 0,
+    autoToc: S.meta.autoToc
+  };
+  await Store.put("meta", m.name, m);
+  S.meta = m; S.file = null;
+  Sync.schedulePush(m);
+  showTempState();
+  toast(`서재의 '${shelfLabel(m.shelf)}'에 넣었습니다.`);
+});
+let confirmReplace = false;
+
+async function makeThumb(pdf) {
   try {
-    const page = await S.pdf.getPage(1);
+    const page = await pdf.getPage(1);
     const vp1 = page.getViewport({ scale: 1 });
     const vp = page.getViewport({ scale: 160 / vp1.width });
     const c = document.createElement("canvas");
@@ -565,10 +838,11 @@ function goShelf() {
   closePanel(false);
   $("reader").hidden = true; $("shelf").hidden = false;
   document.title = "문서 서재 — PDF 책 보기";
+  closeMarkMenu();
   if (S.pdf) { S.pdf.destroy(); S.pdf = null; }
-  S.cache.clear();
+  S.cache.clear(); S.meta = null; S.file = null;   // 서재 밖 문서는 여기서 완전히 잊음
   renderShelf();
-  $("openBtn").focus();
+  $("addBtn").focus();
 }
 $("backBtn").addEventListener("click", goShelf);
 
@@ -683,6 +957,7 @@ function prefetch(pages, scale) {
 
 /** 책갈피·마지막 쪽이 바뀌었을 때: 고친 시각을 적고, 저장하고, 동기화 예약 */
 function metaChanged() {
+  if (S.meta.temp) return;                  // 서재 밖 문서: 기기에 저장하지 않음
   S.meta.updatedAt = Date.now();
   Store.put("meta", S.meta.name, S.meta);
   Sync.schedulePush(S.meta);
@@ -718,6 +993,7 @@ function updateNav(pages) {
    ========================================================= */
 function go(p) {
   if (!S.pdf) return;
+  closeMarkMenu();
   p = Math.min(Math.max(1, p), S.n);
   S.cur = spreadOf(p)[0];
   show();
@@ -741,13 +1017,24 @@ document.addEventListener("keydown", (e) => {
   if ($("reader").hidden) return;
   const t = e.target;
   const typing = t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA");
+  if (e.key === "Escape" && !$("markMenu").hidden) { closeMarkMenu(true); return; }
   if (e.key === "Escape" && !$("panel").hidden) { closePanel(true); return; }
+  if ($("markMenu").contains(t)) return;     // 책갈피 메뉴 안에서는 화살표 등으로 쪽을 넘기지 않음
   if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
   const inPanel = $("panel").contains(t);
   switch (e.key) {
     case "ArrowRight": case "PageDown": if (inPanel) return; e.preventDefault(); next(); break;
     case "ArrowLeft": case "PageUp": if (inPanel) return; e.preventDefault(); prev(); break;
     case " ": if (inPanel || (t && t.tagName === "BUTTON")) return; e.preventDefault(); e.shiftKey ? prev() : next(); break;
+    case "ArrowDown": case "ArrowUp": {
+      // 폭 맞춤·확대로 쪽이 화면보다 길 때: 위아래 키는 쪽 안에서 스크롤 (쪽 넘김은 좌우 키)
+      const st = $("stage");
+      if (inPanel || !st.classList.contains("zoomed")) return;
+      e.preventDefault();
+      const step = Math.max(60, Math.round(st.clientHeight * 0.2));
+      st.scrollBy({ top: e.key === "ArrowDown" ? step : -step, behavior: e.repeat ? "auto" : "smooth" });
+      break;
+    }
     case "Home": if (inPanel) return; e.preventDefault(); go(1); break;
     case "End": if (inPanel) return; e.preventDefault(); go(S.n); break;
     case "b": case "B": toggleMark(); break;
@@ -797,24 +1084,57 @@ new ResizeObserver(() => {
 /* =========================================================
    7. 책갈피
    ========================================================= */
+/** 한 면이면 바로 꽂고/빼고, 양쪽이면 어느 쪽인지 고르는 작은 메뉴를 띄움 */
 function toggleMark() {
   if (!S.pdf) return;
   const pages = spreadOf(S.cur);
+  if (pages.length === 1) { togglePage(pages[0]); return; }
+  $("markMenu").hidden ? openMarkMenu(pages) : closeMarkMenu();
+}
+function togglePage(p) {
   const bms = S.meta.bookmarks || (S.meta.bookmarks = []);
-  const has = bms.filter((b) => pages.includes(b.page));
-  if (has.length) {
-    S.meta.bookmarks = bms.filter((b) => !pages.includes(b.page));
-    toast("책갈피를 뺐습니다.");
+  if (bms.some((b) => b.page === p)) {
+    S.meta.bookmarks = bms.filter((b) => b.page !== p);
+    toast(`${p}쪽 책갈피를 뺐습니다.`);
   } else {
-    bms.push({ page: pages[0], memo: "", at: Date.now() });
+    bms.push({ page: p, memo: "", at: Date.now() });
     bms.sort((a, b) => a.page - b.page);
-    toast(`${pages[0]}쪽에 책갈피를 꽂았습니다.`);
+    toast(`${p}쪽에 책갈피를 꽂았습니다.` + (S.meta.temp ? " (서재 밖 문서라 저장되지 않음)" : ""));
   }
   metaChanged();
   renderBookmarks();
   show();
 }
+function openMarkMenu(pages) {
+  const has = new Set((S.meta.bookmarks || []).map((b) => b.page));
+  const btns = pages.map((p, i) => el("button", {
+    type: "button", class: "btn", "aria-pressed": String(has.has(p)),
+    text: `${has.has(p) ? "★" : "☆"} ${i === 0 ? "왼쪽" : "오른쪽"} · ${p}쪽` + (has.has(p) ? " (빼기)" : ""),
+    onclick: () => { closeMarkMenu(true); togglePage(p); }
+  }));
+  $("markMenuBtns").replaceChildren(...btns);
+  const menu = $("markMenu");
+  menu.hidden = false;
+  const r = $("markBtn").getBoundingClientRect();
+  const w = menu.offsetWidth, h = menu.offsetHeight;
+  let left = Math.min(Math.max(8, r.left), window.innerWidth - w - 8);
+  let top = r.bottom + 6;
+  if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+  if (r.right + w + 8 < window.innerWidth && r.left < 220) { left = r.right + 8; top = Math.min(r.top, window.innerHeight - h - 8); } // 왼쪽 옆줄일 때는 오른쪽에
+  menu.style.left = left + "px"; menu.style.top = top + "px";
+  $("markBtn").setAttribute("aria-expanded", "true");
+  btns[0].focus();
+}
+function closeMarkMenu(returnFocus) {
+  if ($("markMenu").hidden) return;
+  $("markMenu").hidden = true;
+  $("markBtn").setAttribute("aria-expanded", "false");
+  if (returnFocus) $("markBtn").focus();
+}
 $("markBtn").addEventListener("click", toggleMark);
+document.addEventListener("pointerdown", (e) => {
+  if (!$("markMenu").hidden && !$("markMenu").contains(e.target) && e.target !== $("markBtn") && !$("markBtn").contains(e.target)) closeMarkMenu();
+});
 
 function renderBookmarks() {
   const pane = $("pane-bm");
@@ -917,7 +1237,7 @@ async function buildToc() {
   }, docId);
   if (!items || docId !== S.doc) return;
   m.autoToc = { v: 4, size: m.size, items };
-  Store.put("meta", m.name, m);
+  if (!m.temp) Store.put("meta", m.name, m);
   showAutoToc(items);
 }
 
@@ -1202,6 +1522,15 @@ const Sync = (() => {
   }
 
   /* 서버에서 온 책갈피는 바깥 데이터이므로 모양을 다시 검사함 */
+  const COLS = "doc_name,last_page,bookmarks,updated_at,shelf";
+  /** 지금 열려 있는 '서재 안' 문서의 정보 (서재 밖 문서는 동기화와 무관) */
+  function openMeta(name) { return S.meta && !S.meta.temp && S.meta.name === name ? S.meta : null; }
+  function syncError(e) {
+    const t = ((e && (e.code || "")) + " " + (e && e.message || "")).toString();
+    if (/shelf/i.test(t) && /column|schema|PGRST204|42703/i.test(t)) return "서버에 책장 칸이 없습니다. Supabase SQL Editor에서 sql/02_add_shelf.sql을 실행해 주세요.";
+    if (/42501|permission denied/i.test(t)) return "서버 표에 접근 권한이 없습니다. sql/01_doc_state.sql의 grant 줄을 실행했는지 확인해 주세요.";
+    return "동기화하지 못했습니다. 인터넷 연결을 확인한 뒤 '지금 동기화'를 눌러 주세요.";
+  }
   function cleanBookmarks(arr) {
     if (!Array.isArray(arr)) return [];
     return arr
@@ -1216,24 +1545,26 @@ const Sync = (() => {
       doc_name: m.name,
       last_page: Math.max(1, m.lastPage || 1),
       bookmarks: (m.bookmarks || []).map((b) => ({ page: b.page, memo: b.memo || "", at: b.at || 0 })),
-      updated_at: new Date(m.updatedAt || Date.now()).toISOString()
+      updated_at: new Date(m.updatedAt || Date.now()).toISOString(),
+      shelf: cleanShelf(m.shelf) || null
     };
   }
   /** 서버 줄 r을 이 기기의 문서 정보에 반영. 지금 열려 있는 문서면 화면도 갱신 */
   async function applyRemote(r) {
     const rt = Date.parse(r.updated_at) || 0;
-    const open = S.meta && S.meta.name === r.doc_name ? S.meta : null;
+    const open = openMeta(r.doc_name);
     const m = open || await Store.get("meta", r.doc_name);
     if (!m) {
       await Store.put("meta", r.doc_name, {
         name: r.doc_name, size: 0, pages: 0, lastPage: r.last_page, bookmarks: cleanBookmarks(r.bookmarks),
-        thumb: null, addedAt: Date.now(), openedAt: 0, hasFile: false, updatedAt: rt, syncedAt: rt
+        shelf: cleanShelf(r.shelf), thumb: null, addedAt: Date.now(), openedAt: 0, hasFile: false, updatedAt: rt, syncedAt: rt
       });
       return "new";
     }
     const lt = m.updatedAt || 0;
     if (rt > lt) {
-      m.lastPage = r.last_page; m.bookmarks = cleanBookmarks(r.bookmarks); m.updatedAt = rt; m.syncedAt = rt;
+      m.lastPage = r.last_page; m.bookmarks = cleanBookmarks(r.bookmarks); m.shelf = cleanShelf(r.shelf);
+      m.updatedAt = rt; m.syncedAt = rt;
       await Store.put("meta", m.name, m);
       if (open) { renderBookmarks(); show(); toast("다른 기기의 책갈피를 받아 왔습니다."); }
       return "pulled";
@@ -1250,7 +1581,7 @@ const Sync = (() => {
   }
   /** "이 시각의 내용까지는 서버에 있다"고 적어 둠 → 서버에서 지워진 문서를 다시 올리지 않기 위해 */
   async function markSynced(name, at) {
-    const m = S.meta && S.meta.name === name ? S.meta : await Store.get("meta", name);
+    const m = openMeta(name) || await Store.get("meta", name);
     if (!m) return;
     m.syncedAt = Math.max(m.syncedAt || 0, at);
     await Store.put("meta", name, m);
@@ -1261,38 +1592,43 @@ const Sync = (() => {
     if (!user) return;
     setMsg("");
     try {
-      const { data, error } = await sb.from("doc_state").select("doc_name,last_page,bookmarks,updated_at");
+      const { data, error } = await sb.from("doc_state").select(COLS);
       if (error) throw error;
       const remote = new Set();
       const toPush = [];
+      let removed = 0;
       for (const r of data) {
         remote.add(r.doc_name);
-        if ((await applyRemote(r)) === "push") toPush.push(S.meta && S.meta.name === r.doc_name ? S.meta : await Store.get("meta", r.doc_name));
+        if ((await applyRemote(r)) === "push") toPush.push(openMeta(r.doc_name) || await Store.get("meta", r.doc_name));
       }
       for (const m of await Store.allMeta()) {
         // 서버에 없는 문서: 아직 한 번도 안 올렸거나 올린 뒤 고친 것만 올림.
         // 올린 적이 있는데 서버에 없다면 다른 기기에서 지운 것이므로 되살리지 않음
-        const cur = S.meta && S.meta.name === m.name ? S.meta : m;
-        if (!remote.has(m.name) && cur.updatedAt && cur.updatedAt > (cur.syncedAt || 0)) toPush.push(cur);
+        const cur = openMeta(m.name) || m;
+        if (remote.has(m.name)) continue;
+        if (cur.updatedAt && cur.updatedAt > (cur.syncedAt || 0)) toPush.push(cur);
+        // 서버에 올린 적이 있는데 지금 서버에 없음 = 다른 기기에서 삭제함 → 이 기기에서도 지움
+        else if (cur.syncedAt && !openMeta(m.name)) { await Store.del(m.name); removed++; }
       }
       await upsert(toPush);
+      if (removed) toast(`다른 기기에서 삭제한 문서 ${removed}개를 이 기기에서도 지웠습니다.`);
       lastSync = Date.now();
       renderState();
       if (!$("shelf").hidden) renderShelf();
-    } catch (e) { setMsg("동기화하지 못했습니다. 인터넷 연결을 확인한 뒤 '지금 동기화'를 눌러 주세요."); }
+    } catch (e) { setMsg(syncError(e)); }
   }
   /** 문서를 열기 직전에 그 문서 한 줄만 확인 (최대 3초 기다림) */
   async function pullOne(name) {
     if (!user) return;
     try {
-      const q = sb.from("doc_state").select("doc_name,last_page,bookmarks,updated_at").eq("doc_name", name).maybeSingle();
+      const q = sb.from("doc_state").select(COLS).eq("doc_name", name).maybeSingle();
       const res = await Promise.race([q, new Promise((ok) => setTimeout(() => ok({ timeout: true }), 3000))]);
       if (res.timeout || res.error || !res.data) return;
       if ((await applyRemote(res.data)) === "push") schedulePush(await Store.get("meta", name));
     } catch (e) { /* 연결이 안 되면 이 기기 기록으로 그냥 엶 */ }
   }
   function schedulePush(m) {
-    if (!user || !m) return;
+    if (!user || !m || m.temp) return;
     pending.set(m.name, m);
     clearTimeout(pushTimer);
     pushTimer = setTimeout(flush, 3000);       // 쪽을 넘길 때마다 보내지 않고 3초 모아서 한 번에
@@ -1305,7 +1641,7 @@ const Sync = (() => {
     try { await upsert(list); lastSync = Date.now(); renderState(); }
     catch (e) {
       list.forEach((m) => { if (!pending.has(m.name)) pending.set(m.name, m); });
-      setMsg("책갈피를 서버에 올리지 못했습니다. 잠시 뒤 다시 시도합니다.");
+      setMsg(syncError(e) + " (30초 뒤 다시 시도합니다)");
       pushTimer = setTimeout(flush, 30000);
     }
   }
@@ -1323,13 +1659,16 @@ const Sync = (() => {
     const st = $("syncState");
     if (!ready || !sb) {
       st.textContent = "꺼져 있음 — config.js에 Supabase 주소와 Publishable 키를 넣으면 켜집니다. 지금은 이 기기에만 저장됩니다.";
+      $("syncSummary").textContent = "꺼짐";
       $("loginForm").hidden = true; $("syncActions").hidden = true; return;
     }
     if (!user) {
-      st.textContent = "로그인하면 휴대폰과 노트북의 책갈피·마지막 쪽이 맞춰집니다.";
+      st.textContent = "로그인하면 휴대폰과 노트북의 책장·책갈피·마지막 쪽이 맞춰집니다.";
+      $("syncSummary").textContent = "로그인 필요";
       $("loginForm").hidden = false; $("syncActions").hidden = true; return;
     }
     st.textContent = `켜져 있음 · ${user.email}` + (lastSync ? ` · 마지막 동기화 ${hm(lastSync)}` : "");
+    $("syncSummary").textContent = "켜짐" + (lastSync ? ` · ${hm(lastSync)}` : "");
     $("loginForm").hidden = true; $("syncActions").hidden = false;
   }
 
