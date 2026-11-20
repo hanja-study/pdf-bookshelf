@@ -216,3 +216,17 @@ await sb.from("doc_state").select("...").eq("doc_name", name).maybeSingle();
 
 - PDF.js 3.11.174 (Apache-2.0) — https://github.com/mozilla/pdf.js
 - supabase-js 2.119.0 (MIT) — https://github.com/supabase/supabase-js
+
+## 변경 이력
+
+판 번호는 `index.html`의 `APP_VERSION`과 같고, 서재 맨 아래 「기기 간 동기화」 줄 오른쪽에 보입니다.
+
+| 판 | 날짜 | 내용 |
+|---|---|---|
+| v1.0 | 2026-11-12 | 기기 간 동기화 (Supabase 로그인, doc_state, RLS) |
+| v1.1 | 2026-11-13 | 폭 맞춤 보기 (W 키) |
+| v1.2 | 2026-11-13 | 책장·정렬·책갈피 쪽 고르기·바로 읽기, 삭제 시 책갈피·서버 기록까지 (sql/02) |
+| v1.3 | 2026-11-13 | 폭 맞춤에서 ↑ ↓ 스크롤 |
+| v1.4 | 2026-11-13 | 서재 모양 파비콘 |
+| v1.5 | 2026-11-20 | 다른 기기에서 넣은 문서에 PDF 붙일 때 이름 확인 창 |
+| v1.6 | 2026-11-20 | 판 번호 표시 |
