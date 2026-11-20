@@ -194,6 +194,12 @@ details.sync > summary{cursor:pointer;min-height:44px;display:flex;align-items:c
 .help{font-size:14px;color:var(--muted);margin:6px 0 0}
 kbd{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:4px;padding:0 5px;background:var(--card)}
 
+/* ---------- 고르기 창 (confirm 대신) ---------- */
+#askBack{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+#askBox{background:var(--bg);color:var(--fg);border-radius:14px;box-shadow:var(--shadow);max-width:460px;width:100%;padding:18px}
+#askBox h2{margin:0 0 8px;font-size:17px}
+#askBox p{margin:0 0 6px;word-break:break-all}
+#askBtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;justify-content:flex-end}
 #toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);max-width:90vw;
   background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:20;font-size:15px}
 </style>
@@ -209,6 +215,7 @@ kbd{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:4px;p
     <button type="button" class="btn" id="quickBtn">바로 읽기</button>
     <input type="file" id="fileInput" accept="application/pdf,.pdf" multiple class="sr-only" tabindex="-1" aria-hidden="true">
     <input type="file" id="quickInput" accept="application/pdf,.pdf" class="sr-only" tabindex="-1" aria-hidden="true">
+    <input type="file" id="attachInput" accept="application/pdf,.pdf" class="sr-only" tabindex="-1" aria-hidden="true">
   </header>
   <main class="shelf-main">
     <p class="hint-line">PDF를 이 화면에 끌어다 놓으면 지금 고른 책장에 들어갑니다. 「바로 읽기」는 서재에 넣지 않고 이번 한 번만 봅니다(아무것도 저장하지 않음).</p>
@@ -352,6 +359,13 @@ kbd{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:4px;p
 <div id="markMenu" role="group" aria-labelledby="markMenuTitle" hidden>
   <p id="markMenuTitle">책갈피를 꽂을 쪽</p>
   <div id="markMenuBtns" style="display:flex;flex-direction:column;gap:6px"></div>
+</div>
+<div id="askBack" hidden>
+  <div id="askBox" role="dialog" aria-modal="true" aria-labelledby="askTitle" aria-describedby="askBody">
+    <h2 id="askTitle"></h2>
+    <div id="askBody"></div>
+    <div id="askBtns"></div>
+  </div>
 </div>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 <div id="live" class="sr-only" aria-live="polite"></div>
@@ -736,14 +750,96 @@ async function openStored(name) {
   if (!pdfjs) { toast("PDF 보기 모듈을 불러오지 못했습니다. 새로 고침 후 다시 해 주세요."); return; }
   const file = await Store.get("files", name);
   if (!file) {
-    toast(`이 기기에는 '${name}' 파일이 없습니다. 같은 이름의 PDF를 넣어 주세요.`);
-    $("fileInput").click();
+    attachFor(name);                          // 다른 기기에서만 넣은 문서: 이 기기의 PDF를 붙이게 함
     return;
   }
   await Sync.pullOne(name);                   // 다른 기기에서 더 읽었으면 그 쪽부터 열리도록
   const meta = await Store.get("meta", name);
   if (!meta) { toast("저장된 문서 정보를 찾지 못했습니다. 다시 열어 주세요."); renderShelf(); return; }
   await openPdf(file, meta);
+}
+
+/* ---------- 고르기 창: confirm() 대신 쓰는 화면 안 창 ----------
+   choices: [{ label, value, primary }]  →  누른 단추의 value (Esc·바깥 누르기는 null) */
+function ask(title, lines, choices) {
+  return new Promise((done) => {
+    const back = $("askBack"), before = document.activeElement;
+    $("toast").hidden = true;
+    $("askTitle").textContent = title;
+    $("askBody").replaceChildren(...lines.map((t) => el("p", { text: t })));
+    const finish = (v) => {
+      back.hidden = true;
+      document.removeEventListener("keydown", onKey, true);
+      if (before && before.focus) before.focus();
+      done(v);
+    };
+    const btns = choices.map((c) => el("button", {
+      type: "button", class: "btn" + (c.primary ? " primary" : ""), text: c.label, onclick: () => finish(c.value)
+    }));
+    $("askBtns").replaceChildren(...btns);
+    const onKey = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finish(null); }
+      else if (e.key === "Tab") {                    // 창 안에서만 초점이 돌게
+        const i = btns.indexOf(document.activeElement);
+        if (e.shiftKey && i <= 0) { e.preventDefault(); btns[btns.length - 1].focus(); }
+        else if (!e.shiftKey && i === btns.length - 1) { e.preventDefault(); btns[0].focus(); }
+      } else e.stopPropagation();                    // 뒤 화면의 단축키(← → B 등)가 먹지 않게
+    };
+    document.addEventListener("keydown", onKey, true);
+    back.onclick = (e) => { if (e.target === back) finish(null); };
+    back.hidden = false;
+    btns[0].focus();
+  });
+}
+
+/* ---------- 다른 기기에서 넣은 문서에 이 기기의 PDF 붙이기 ----------
+   이름이 같으면 바로 붙이고, 다르면 정말 같은 문서인지 물어봄
+   (다른 문서를 붙이면 책갈피 쪽 번호가 엉뚱한 곳을 가리키게 되므로) */
+let attachTarget = null;
+function attachFor(name) {
+  attachTarget = name;
+  toast(`'${name}' 파일을 골라 주세요.`);
+  $("attachInput").click();
+}
+$("attachInput").addEventListener("change", async (e) => {
+  const f = e.target.files[0], name = attachTarget;
+  e.target.value = ""; attachTarget = null;
+  if (!f || !name) return;
+  if (!isPdf(f)) { toast("PDF 파일만 붙일 수 있습니다."); return; }
+  if (f.name === name) { await attachFile(name, f); return; }
+  const pick = await ask("파일 이름이 다릅니다", [
+    `고른 파일: ${f.name}`,
+    `붙일 문서: ${name}`,
+    "같은 문서의 다른 이름이면 '이 문서로 붙이기'를, 다른 문서면 '따로 넣기'를 고르세요. 다른 문서를 붙이면 책갈피가 엉뚱한 쪽을 가리킵니다."
+  ], [
+    { label: "취소", value: null },
+    { label: "따로 넣기", value: "separate" },
+    { label: "이 문서로 붙이기", value: "attach", primary: true }
+  ]);
+  if (pick === "attach") await attachFile(name, f);
+  else if (pick === "separate") await addFiles([f]);
+});
+
+/** PDF 파일을 서재의 기존 문서(name)에 붙임. 책장·읽던 쪽·책갈피는 그 문서 것을 그대로 */
+async function attachFile(name, f) {
+  const prev = await Store.get("meta", name);
+  if (!prev) { await addFiles([f]); return; }
+  toast(`붙이는 중… ${f.name}`);
+  const info = await probePdf(f);
+  if (!info) { toast(`'${f.name}'은(는) 열 수 없는 PDF라 붙이지 않았습니다.`); return; }
+  const dropped = (prev.bookmarks || []).filter((b) => b.page > info.pages).length;
+  await Store.put("files", name, f);
+  Object.assign(prev, {
+    size: f.size, pages: info.pages, thumb: info.thumb, hasFile: true,
+    lastPage: Math.min(prev.lastPage || 1, info.pages),
+    bookmarks: (prev.bookmarks || []).filter((b) => b.page <= info.pages),
+    autoToc: null
+  });
+  if (dropped) prev.updatedAt = Date.now();        // 책갈피가 줄었으면 서버에도 알림
+  await Store.put("meta", name, prev);
+  if (dropped) Sync.schedulePush(prev);
+  renderShelf();
+  toast(dropped ? `붙였습니다. 이 PDF보다 뒤쪽을 가리키던 책갈피 ${dropped}개는 뺐습니다.` : `'${name}'에 PDF를 붙였습니다.`);
 }
 
 /** 서재 밖 PDF: 기기에 아무것도 저장하지 않고 이번에만 봄 (책갈피도 창을 닫으면 사라짐) */
